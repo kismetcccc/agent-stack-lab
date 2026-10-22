@@ -1,0 +1,16 @@
+services:
+  integration:
+    extends:
+      file: compose.yaml
+      service: api
+    image: agent-stack-lab-tests:local
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    restart: 'no'
+    healthcheck:
+      disable: true
+    environment:
+      TEST_BASE_URL: http://api:8000
+    volumes:
+      - ./test-results:/reports

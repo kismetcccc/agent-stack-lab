@@ -1,0 +1,17 @@
+[project]
+name = "agent-stack-lab"
+version = "0.1.0"
+description = "Chinese backend learning lab; deterministic model by default"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "sqlalchemy>=2.0,<3", "pymysql[rsa]>=1.1,<2", "pymongo>=4.11,<5", "redis>=5,<7", "confluent-kafka>=2.8,<3", "httpx>=0.28,<1", "prometheus-client>=0.21,<1"]
+[dependency-groups]
+dev = ["pytest>=8,<9", "ruff>=0.11,<1"]
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+markers = ["integration: requires real external services"]
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

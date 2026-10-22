@@ -1,0 +1,128 @@
+name: agent-stack-lab
+x-app: &app
+  image: agent-stack-lab-api:local
+  build:
+    context: .
+    dockerfile: Dockerfile.api
+  environment: &app-env
+    LAB_MODE: production
+    DATABASE_URL: mysql+pymysql://lab:${MYSQL_PASSWORD:?Run scripts/infra-init-env.py first}@mysql:3306/agentlab
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    MONGO_URL: mongodb://root:${MONGO_PASSWORD:?Run scripts/infra-init-env.py first}@mongo:27017/?authSource=admin
+    REDIS_URL: redis://:${REDIS_PASSWORD:?Run scripts/infra-init-env.py first}@redis:6379/0
+    MODEL_MODE: deterministic
+    APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+  restart: unless-stopped
+  init: true
+  networks: [lab]
+services:
+  mysql:
+    image: mysql:8.4.7
+    environment:
+      MYSQL_DATABASE: agentlab
+      MYSQL_USER: lab
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Run scripts/infra-init-env.py first}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/infra-init-env.py first}
+    volumes: [mysql-data:/var/lib/mysql]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysql -h 127.0.0.1 -uroot -e "SELECT 1" >/dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+    networks: [lab]
+    restart: unless-stopped
+  kafka:
+    image: apache/kafka:4.0.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes: [kafka-data:/var/lib/kafka/data]
+    healthcheck:
+      test: [CMD-SHELL, '/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1']
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+    networks: [lab]
+    restart: unless-stopped
+  mongo:
+    image: mongo:8.0.6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Run scripts/infra-init-env.py first}
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: [CMD-SHELL, 'mongosh --quiet --username root --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "quit(db.adminCommand({ping:1}).ok ? 0 : 1)"']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    networks: [lab]
+    restart: unless-stopped
+  redis:
+    image: redis:7.4.2
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run scripts/infra-init-env.py first}
+    command: [sh, -c, 'exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [lab]
+    restart: unless-stopped
+  migrate:
+    <<: *app
+    command: [python, -m, backend.migrate]
+    restart: 'no'
+    depends_on:
+      mysql: {condition: service_healthy}
+  api:
+    <<: *app
+    ports: ['127.0.0.1:${LAB_PORT:-8080}:8000']
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      kafka: {condition: service_healthy}
+      mongo: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/readyz", timeout=3)']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  worker:
+    <<: *app
+    command: [python, -m, backend.worker]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      kafka: {condition: service_healthy}
+      mongo: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -m, backend.worker, --healthcheck]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+networks:
+  lab: {}
+volumes:
+  mysql-data: {}
+  kafka-data: {}
+  mongo-data: {}
+  redis-data: {}

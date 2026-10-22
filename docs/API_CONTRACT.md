@@ -54,7 +54,7 @@ Kafka 启动显式建立开发用单分区、单副本的任务与DLQ主题；�
 
 ## 受限单 Agent：具体响应契约
 
-实现状态：运行时、真实组件与浏览器教学链路已验收，见[单Agent验收报告](AGENT_TEST_REPORT.md)；真实provider尚未调用/验收，不能以脚本或mock替代。
+实现状态：运行时、真实组件与浏览器教学链路已验收，见[单Agent验收报告](AGENT_TEST_REPORT.md)；真实 provider 仅有独立接口连通性检查，尚未完成工具调用及全栈 live 验收；不能以脚本或 mock 替代。
 `POST /tasks` 仍仅接受 `{prompt}`（1..10000字符，trim后幂等摘要）。材料就是完整prompt，材料标识为 `task_input`，没有独立附件。
 
 ### 可复现脚本示例（没有真实模型推理）

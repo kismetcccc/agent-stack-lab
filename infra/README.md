@@ -1,7 +1,7 @@
 # 当前后端开发环境
 
 本轮默认仅运行 API、Worker、一次性迁移与 MySQL / Kafka / MongoDB / Redis。
-前端、网关、Kubernetes 和可观测性草稿不属于当前交付或验收依赖。
+可选前端与同源网关已通过独立验收，使用 `compose.ui.yaml` 显式启用，不是后端独立测试的依赖。Kubernetes 与外围可观测性草稿仍未做运行验收。
 
 ```bash
 python scripts/infra-init-env.py
@@ -15,7 +15,7 @@ docker compose down
 初始化脚本用密码学随机数生成 URI-safe 密码，`.env` 权限0600，已存在时拒绝覆盖。
 MySQL/MongoDB/Redis 有认证；数据库与 Kafka 不发布宿主端口。
 Kafka 为单节点 KRaft 开发实例，网络内明文无认证；不是生产安全或高可用配置。
-API 仅绑定 `127.0.0.1:8080`。没有公开部署、云资源购买或真实模型调用。
+API 仅绑定 `127.0.0.1:8080`。没有公开部署或云资源购买；默认 Compose 不调用真实模型。独立 provider 连通性检查不属于 Compose live 验收。
 容器运行 deterministic 模型适配器，绝不能把它描述成真实模型服务。
 
 ## 数据与迁移
@@ -29,6 +29,8 @@ MySQL 使用 `agentlab` 数据库，账户 `lab`。其余凭据由环境生成�
 更改 `.env` 不会自动更改已初始化数据库密码；重置密码必须分别执行对应数据库操作。
 
 ## 测试与证据边界
+
+提交 `f36523fa` 的 [CI 39725461902](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902) 已完成真实 Compose 组件、故障恢复与可选 UI 浏览器验证。以下“编写环境未运行容器”不否定独立 CI 的实际证据，也不意味着 Windows 或 Kubernetes 已通过。
 
 - 已运行：官方 Docker Compose v2.35.1 CLI 的 `config --quiet`（离线）；YAML与隔离/迁移依赖不变量验证；脚本语法检查。
 - 当前编写环境缺少 Docker daemon，未运行容器；CPU/内存/磁盘占用与启动时间未实测，不给虚构的最低资源承诺。

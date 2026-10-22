@@ -55,14 +55,14 @@
 
 | ID | 优先级 | 任务 | 状态 | 当前证据 / 已知缺口 | 依赖 | 验收标准 | 交付文件 |
 |---|---|---|---|---|---|---|---|
-| BASE-01 | P0 | 校正当前能力与证据基线 | 待开始 | 本页基线 CI 已通过；README/Agent.md 仍引用较早快照；infra 主说明与可选 UI 范围不一致；K8s 入口需要显著标“未集群验收” | 无 | 当前入口一致；历史报告保持原 commit；列清真实 Compose、脚本模型、独立 live 连通性、未验收全栈 live 与 K8s 五种状态 | `README.md`、`Agent.md`、`docs/TEST_REPORT.md` 或新的当前报告、`infra/README.md`、`infra/k8s/README.md` |
-| MOD-API | P0 | 审计 API 输入/输出、调用链和错误边界 | 待开始 | `app.py` 已实现 body 上限、分页、统一错误、request_id；部分响应模型主要仍靠契约/测试说明 | BASE-01 | 列出每条路由、身份/CSRF要求、HTTP状态与 DTO；提交先验证再落库；curl 与 OpenAPI/实现一致；错误不泄漏栈或连接信息 | `docs/MODULE_CONTRACTS.md` API 节、`docs/API_CONTRACT.md`、对应 API 测试 |
-| MOD-AUTH | P0 | 审计认证、会话、CSRF和资源级授权 | 待开始 | `auth.py` 有 scrypt、会话/CSRF 摘要、过期/退出；无认证限流、找回、邮件验证、MFA | BASE-01 | 讲清 cookie、CSRF轮换、Origin、401/403/404边界；每个任务子资源都测未登录/非所有者；列出未实现防滥用而不称生产安全 | `docs/MODULE_CONTRACTS.md` Auth 节、`docs/API_CONTRACT.md`、`backend/tests/`、`tests/integration/` |
-| MOD-MYSQL | P0 | 审计事务账本、索引、迁移与连接行为 | 待开始 | `db.py` 的唯一/复合索引、`service.py` 事务；`migrate.py` 只有初始 v1 `create_all`，不是升级/回滚框架 | MOD-API、MOD-AUTH | 表/索引对应具体查询；解释 task+outbox、inbox+ready、claim/fence/finalize事务；给实际SQL/EXPLAIN学习例；区分重复初始化与schema升级；说明连接池/超时与停库行为 | `docs/MODULE_CONTRACTS.md` MySQL 节、`docs/ARCHITECTURE.md`、迁移/事务测试 |
-| MOD-KAFKA | P0 | 审计事件交付、offset、去重、重试与DLQ | 待开始 | `KafkaBus`、`relay_once`、`receive`、worker commit；只支持单 relay；非法事件会阻止 offset 前进 | MOD-MYSQL | 写明事件 schema、key/分区/消费组、确认顺序；重复不回退状态；区分失败outbox与已投递DLQ；说明坏消息阻塞诊断，不能直接跳offset“修复”；不承诺跨库 exactly-once | `docs/MODULE_CONTRACTS.md` Kafka 节、`docs/FAILURE_LABS.md`、链路/恢复测试 |
-| MOD-MONGO | P0 | 审计结果文档、不可变ID和提交可见性 | 待开始 | `_id=result_id` 的 `$setOnInsert`；先Mongo后SQL引用；孤儿清理未实现 | MOD-MYSQL | 给成功/legacy文档样例、attempt专属ID与预算；Mongo写失败不假成功；SQL未提交不暴露工具动作；缓存miss时Mongo读失败503；说明孤儿与非跨库事务 | `docs/MODULE_CONTRACTS.md` MongoDB 节、`docs/API_CONTRACT.md`、文档故障测试 |
-| MOD-REDIS | P0 | 审计可丢弃缓存、TTL与降级 | 待开始 | `ProgressCache` 有300秒结果/进度TTL；结果先SQL授权再查缓存；不是限流实现 | MOD-MONGO、MOD-AUTH | 展示 miss→hit、disabled/unavailable、过期回源；SQL不可用不允许缓存绕过授权；Redis停机不改变任务结果；讲清进度写入与API阶段值并非同一数据来源；readyz当前不探测Redis，不能声称返回其degraded状态 | `docs/MODULE_CONTRACTS.md` Redis 节、`docs/FAILURE_LABS.md`、缓存/权限测试 |
-| MOD-WORKER | P0 | 审计 relay/consumer/executor/recovery 的真实职责 | 待开始 | `worker.py` 多线程单进程；`service.py` 的租约、fence、有限重试；已有精确故障hooks但真实脚本未验收 | MOD-MYSQL、MOD-KAFKA、MOD-MONGO、MOD-REDIS | 逐步解释短事务领取→事务外执行→Mongo持久化→fenced提交；核对暂时/永久错误、attempt/DLQ；区分线程健康/业务进展；说明单实例及终止/恢复边界 | `docs/MODULE_CONTRACTS.md` Worker 节、`docs/ARCHITECTURE.md`、`docs/AGENT_WALKTHROUGH.md`、恢复测试 |
+| BASE-01 | P0 | 校正当前能力与证据基线 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | 无 | 当前入口一致；历史报告保持原 commit；列清真实 Compose、脚本模型、独立 live 连通性、未验收全栈 live 与 K8s 五种状态 | `README.md`、`Agent.md`、`docs/TEST_REPORT.md` 或新的当前报告、`infra/README.md`、`infra/k8s/README.md` |
+| MOD-API | P0 | 审计 API 输入/输出、调用链和错误边界 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | BASE-01 | 列出每条路由、身份/CSRF要求、HTTP状态与 DTO；提交先验证再落库；curl 与 OpenAPI/实现一致；错误不泄漏栈或连接信息 | `docs/MODULE_CONTRACTS.md` API 节、`docs/API_CONTRACT.md`、对应 API 测试 |
+| MOD-AUTH | P0 | 审计认证、会话、CSRF和资源级授权 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | BASE-01 | 讲清 cookie、CSRF轮换、Origin、401/403/404边界；每个任务子资源都测未登录/非所有者；列出未实现防滥用而不称生产安全 | `docs/MODULE_CONTRACTS.md` Auth 节、`docs/API_CONTRACT.md`、`backend/tests/`、`tests/integration/` |
+| MOD-MYSQL | P0 | 审计事务账本、索引、迁移与连接行为 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-API、MOD-AUTH | 表/索引对应具体查询；解释 task+outbox、inbox+ready、claim/fence/finalize事务；给实际SQL/EXPLAIN学习例；区分重复初始化与schema升级；说明连接池/超时与停库行为 | `docs/MODULE_CONTRACTS.md` MySQL 节、`docs/ARCHITECTURE.md`、迁移/事务测试 |
+| MOD-KAFKA | P0 | 审计事件交付、offset、去重、重试与DLQ | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-MYSQL | 写明事件 schema、key/分区/消费组、确认顺序；重复不回退状态；区分失败outbox与已投递DLQ；说明坏消息阻塞诊断，不能直接跳offset“修复”；不承诺跨库 exactly-once | `docs/MODULE_CONTRACTS.md` Kafka 节、`docs/FAILURE_LABS.md`、链路/恢复测试 |
+| MOD-MONGO | P0 | 审计结果文档、不可变ID和提交可见性 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-MYSQL | 给成功/legacy文档样例、attempt专属ID与预算；Mongo写失败不假成功；SQL未提交不暴露工具动作；缓存miss时Mongo读失败503；说明孤儿与非跨库事务 | `docs/MODULE_CONTRACTS.md` MongoDB 节、`docs/API_CONTRACT.md`、文档故障测试 |
+| MOD-REDIS | P0 | 审计可丢弃缓存、TTL与降级 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-MONGO、MOD-AUTH | 展示 miss→hit、disabled/unavailable、过期回源；SQL不可用不允许缓存绕过授权；Redis停机不改变任务结果；讲清进度写入与API阶段值并非同一数据来源；readyz当前不探测Redis，不能声称返回其degraded状态 | `docs/MODULE_CONTRACTS.md` Redis 节、`docs/FAILURE_LABS.md`、缓存/权限测试 |
+| MOD-WORKER | P0 | 审计 relay/consumer/executor/recovery 的真实职责 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-MYSQL、MOD-KAFKA、MOD-MONGO、MOD-REDIS | 逐步解释短事务领取→事务外执行→Mongo持久化→fenced提交；核对暂时/永久错误、attempt/DLQ；区分线程健康/业务进展；说明单实例及终止/恢复边界 | `docs/MODULE_CONTRACTS.md` Worker 节、`docs/ARCHITECTURE.md`、`docs/AGENT_WALKTHROUGH.md`、恢复测试 |
 
 ### 迭代二：只修必要功能问题，补足后端证据
 
@@ -70,9 +70,9 @@
 
 | ID | 优先级 | 任务 | 状态 | 当前证据 / 已知缺口 | 依赖 | 验收标准 | 交付文件 |
 |---|---|---|---|---|---|---|---|
-| FIX-ENV | P1（首个实现） | 安全补齐已存在.env中的缺失开发凭据 | 待开始 | `infra-init-env.py` 使用排他新建，已有.env会拒绝；先填模型变量再初始化数据库的常见流程被阻断，这是易用性缺口，不是已有文件损坏 | 计划已发布、模块审计 | 新增显式 `--fill-missing`；只补缺失或明确空值的必需开发凭据，保留已有非空值及原始秘密字节；重复键、符号链接、含糊部分配置安全拒绝；不打印秘密、不覆盖/轮换已有密码；临时目录单元覆盖成功/拒绝/重跑，零live调用；不执行用户电脑上的生成或启动 | `scripts/infra-init-env.py`、对应脚本单元测试、`docs/CONFIGURATION.md`、`README.md` |
-| FIX-01 | P0 | 修复审计确认的主链路/授权/恢复缺陷 | 待开始 | 审计已确认初始化易用性缺口（FIX-ENV）与可选故障实验配置缺陷（TEST-02）；其他限制不自动当bug | 全部 MOD-* | 每个缺陷有复现→最小修复→回归→文档；无未处理的数据丢失、越权、假成功、无限重试或秘密泄漏阻断项；未发现缺陷则记录审计范围与证据，不空改代码 | 受影响 `backend/`、对应测试、`docs/TEST_REPORT.md` 或当前报告、本表缺陷登记 |
-| TEST-01 | P1 | 补齐模块级正常/失败矩阵与 MySQL 故障实测 | 待开始 | 现有真实13项集成及Redis/Kafka/Mongo停机通过；缺少明确MySQL停机/恢复验收 | 全部 MOD-*；涉及修复须 FIX-01 | 真实停MySQL时API可诊断503、任务不假成功、缓存不绕权；恢复后已持久化工作可继续；保留并回归现有所有关键组件故障；记录清理/恢复结果 | `tests/integration/`、`scripts/test-integration.sh`、`docs/TEST_PLAN.md`、`docs/FAILURE_LABS.md`、当前报告 |
+| FIX-ENV | P1（首个实现） | 安全补齐已存在.env中的缺失开发凭据 | 进行中 | `infra-init-env.py` 使用排他新建，已有.env会拒绝；先填模型变量再初始化数据库的常见流程被阻断，这是易用性缺口，不是已有文件损坏 | 计划已发布、模块审计 | 新增显式 `--fill-missing`；只补缺失或明确空值的必需开发凭据，保留已有非空值及原始秘密字节；重复键、符号链接、含糊部分配置安全拒绝；不打印秘密、不覆盖/轮换已有密码；临时目录单元覆盖成功/拒绝/重跑，零live调用；不执行用户电脑上的生成或启动 | `scripts/infra-init-env.py`、对应脚本单元测试、`docs/CONFIGURATION.md`、`README.md` |
+| FIX-01 | P0 | 修复审计确认的主链路/授权/恢复缺陷 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 未发现额外主链路阻断项；初始化与可选故障实验缺口分别由 FIX-ENV / TEST-02 跟踪，不代表没有任何潜在缺陷。 | 全部 MOD-* | 每个缺陷有复现→最小修复→回归→文档；无未处理的数据丢失、越权、假成功、无限重试或秘密泄漏阻断项；未发现缺陷则记录审计范围与证据，不空改代码 | 受影响 `backend/`、对应测试、`docs/TEST_REPORT.md` 或当前报告、本表缺陷登记 |
+| TEST-01 | P1 | 补齐模块级正常/失败矩阵与 MySQL 故障实测 | 进行中 | 现有真实13项集成及Redis/Kafka/Mongo停机通过；缺少明确MySQL停机/恢复验收 | 全部 MOD-*；涉及修复须 FIX-01 | 真实停MySQL时API可诊断503、任务不假成功、缓存不绕权；恢复后已持久化工作可继续；保留并回归现有所有关键组件故障；记录清理/恢复结果 | `tests/integration/`、`scripts/test-integration.sh`、`docs/TEST_PLAN.md`、`docs/FAILURE_LABS.md`、当前报告 |
 | TEST-02 | P1 | 修复可选精确宕机实验，使其配置与运行时一致 | 待开始 | 审计复现：fault overlay租约3秒小于Agent预留15秒，导致预算立即失败、到不了after_mongo_save；`LAB_TEST_TASK_ID`传入但hook未读取；标准13项集成没有运行本脚本 | MOD-WORKER；FIX-ENV后执行 | 修复租约预算与目标task过滤；补marker/目标选择/正常关闭hook等 focused测试；明确4窗口真实实验仍需隔离Docker。环境允许时再执行发布后、Inbox后、claim后、Mongo后SIGKILL及恢复，成功前始终标“真实实验未验收”；不把标准恢复或单元测试说成精确窗口通过 | `compose.fault-test.yaml`、`backend/faults.py`及调用点、`scripts/test-crash-windows.sh`、对应测试、`docs/FAILURE_LABS.md`、当前报告 |
 | TEST-03 | P1 | 默认CI与接口示例的可复现验收 | 待开始 | 默认CI已有真实Compose及可选UI独立job；已有30条Judge采集不需扩展 | FIX-01、TEST-01、TEST-02、DOC-01 | 冻结依赖、lint、单元、真实集成、适用UI回归通过；HTTP示例在真实栈执行；CI没有模型key、不发live请求；保留基础功能断言，细粒度Judge不成为新增门槛 | `.github/workflows/ci.yml`（有必要才改）、相关脚本/测试、`docs/TEST_PLAN.md`、当前报告 |
 
@@ -82,16 +82,16 @@
 
 | ID | 优先级 | 任务 | 状态 | 当前证据 / 已知缺口 | 依赖 | 验收标准 | 交付文件 |
 |---|---|---|---|---|---|---|---|
-| DOC-01 | P1 | 完整配置表与可复制HTTP主功能示例 | 待开始 | `.env.example`、`FAILURE_LABS.md` 已有基础curl；Compose固定deterministic，不能仅改.env就宣称开启live | MOD-API、MOD-AUTH、MOD-WORKER | 配置列默认值/是否秘密/读取入口/修改后动作；Bash示例串起登录、CSRF、幂等、轮询、结果/步骤/错误、退出；返回字段与代码一致；截图可选，不依赖前端才能学会 | `docs/CONFIGURATION.md`、`docs/API_CONTRACT.md`、`docs/FAILURE_LABS.md`、`.env.example`（占位符）、`README.md` |
-| DOC-02 | P1 | 运维、排障和数据保护清单 | 待开始 | 有启动/停止和个别故障命令；没有集中的备份恢复/排障手册 | 全部 MOD-*、TEST-01 | 覆盖初始化、迁移、健康/就绪、服务/业务日志、待发outbox/过期租约诊断、已知坏消息处理边界、磁盘/卷、备份/恢复演练、升级回退边界；提供独立合成数据备份/恢复演练步骤与SQL引用/Mongo结果核对方法；未实际运行就明确标“未验收恢复能力”，不以文档齐全冒充灾备验证 | `docs/OPERATIONS.md`、`infra/README.md`、`docs/FAILURE_LABS.md`、必要的安全脚本及报告 |
-| DOC-03 | P1 | 学习路线、文档索引与部署层边界 | 待开始 | 文档已较丰富但缺统一索引；K8s存在清单与草稿，容易误读已运行 | BASE-01、全部 MOD-*、DOC-01、DOC-02 | 索引按入门→调用链→模块→实验→运维→贡献排序；每篇说明前提/产物/状态；链接检查通过；K8s只讲编排，不混同Kafka交付/MySQL权威；明确Compose已验证、K8s manifest-only及未来验收条件 | `docs/README.md`、`docs/LEARNING_PATH.md`、`docs/COMPONENTS.md`、`infra/k8s/README.md`、`README.md` |
+| DOC-01 | P1 | 完整配置表与可复制HTTP主功能示例 | 进行中 | `.env.example`、`FAILURE_LABS.md` 已有基础curl；Compose固定deterministic，不能仅改.env就宣称开启live | MOD-API、MOD-AUTH、MOD-WORKER | 配置列默认值/是否秘密/读取入口/修改后动作；Bash示例串起登录、CSRF、幂等、轮询、结果/步骤/错误、退出；返回字段与代码一致；截图可选，不依赖前端才能学会 | `docs/CONFIGURATION.md`、`docs/API_CONTRACT.md`、`docs/FAILURE_LABS.md`、`.env.example`（占位符）、`README.md` |
+| DOC-02 | P1 | 运维、排障和数据保护清单 | 进行中 | 有启动/停止和个别故障命令；没有集中的备份恢复/排障手册 | 全部 MOD-*、TEST-01 | 覆盖初始化、迁移、健康/就绪、服务/业务日志、待发outbox/过期租约诊断、已知坏消息处理边界、磁盘/卷、备份/恢复演练、升级回退边界；提供独立合成数据备份/恢复演练步骤与SQL引用/Mongo结果核对方法；未实际运行就明确标“未验收恢复能力”，不以文档齐全冒充灾备验证 | `docs/OPERATIONS.md`、`infra/README.md`、`docs/FAILURE_LABS.md`、必要的安全脚本及报告 |
+| DOC-03 | P1 | 学习路线、文档索引与部署层边界 | 进行中 | 文档已较丰富但缺统一索引；K8s存在清单与草稿，容易误读已运行 | BASE-01、全部 MOD-*、DOC-01、DOC-02 | 索引按入门→调用链→模块→实验→运维→贡献排序；每篇说明前提/产物/状态；链接检查通过；K8s只讲编排，不混同Kafka交付/MySQL权威；明确Compose已验证、K8s manifest-only及未来验收条件 | `docs/README.md`、`docs/LEARNING_PATH.md`、`docs/COMPONENTS.md`、`infra/k8s/README.md`、`README.md` |
 
 ### 迭代四：开源准备与本轮收口
 
 | ID | 优先级 | 任务 | 状态 | 当前证据 / 已知缺口 | 依赖 | 验收标准 | 交付文件 |
 |---|---|---|---|---|---|---|---|
-| OSS-01 | P1 | 汇总经核验的优秀开源/官方文档 | 待开始 | 已有零散官方链接；集中目录由独立资料任务编写 | MOD-* 作为主题输入，不阻塞并行研究 | 每项有来源、官方/仓库身份、适用章节、版本或核验日期、学习要点与项目关联；引用/片段遵循原许可证，原创摘要为主，不整篇搬运；资源不是新增组件安装清单 | `docs/OPEN_SOURCE_RESOURCES.md`、`docs/README.md` |
-| OSS-02 | P1 | 贡献、安全、依赖和引用许可清单 | 待开始 | 初始快照无根目录 `CONTRIBUTING.md`、`SECURITY.md`、`LICENSE`；依赖有lock但无集中许可清单 | DOC-03、OSS-01 | 贡献指南含环境/测试/接口同步要求；安全指南拒绝公开key或私人日志，说明已知非生产边界与实际可用的报告渠道（不编造邮箱）；列锁定依赖/镜像/引用来源与许可证核对状态；未知项不写成许可兼容已确认 | `CONTRIBUTING.md`、`SECURITY.md`、`docs/THIRD_PARTY_NOTICES.md`、`docs/RELEASE_CHECKLIST.md` |
+| OSS-01 | P1 | 汇总经核验的优秀开源/官方文档 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 | MOD-* 作为主题输入，不阻塞并行研究 | 每项有来源、官方/仓库身份、适用章节、版本或核验日期、学习要点与项目关联；引用/片段遵循原许可证，原创摘要为主，不整篇搬运；资源不是新增组件安装清单 | `docs/OPEN_SOURCE_RESOURCES.md`、`docs/README.md` |
+| OSS-02 | P1 | 贡献、安全、依赖和引用许可清单 | 进行中 | 初始快照无根目录 `CONTRIBUTING.md`、`SECURITY.md`、`LICENSE`；依赖有lock但无集中许可清单 | DOC-03、OSS-01 | 贡献指南含环境/测试/接口同步要求；安全指南拒绝公开key或私人日志，说明已知非生产边界与实际可用的报告渠道（不编造邮箱）；列锁定依赖/镜像/引用来源与许可证核对状态；未知项不写成许可兼容已确认 | `CONTRIBUTING.md`、`SECURITY.md`、`docs/THIRD_PARTY_NOTICES.md`、`docs/RELEASE_CHECKLIST.md` |
 | OSS-03 | P1（正式开源发布门槛） | 用户选择项目许可证 | 阻塞 | 尚无明确许可证选择；仓库公开不构成代选授权 | 所有者明确批准；OSS-02清单 | 先给简短候选/注意事项供用户决定；得到明确选择后再添加原文许可证与正确主体信息；未选择时继续其他开发，但不宣称正式开源授权完成 | `LICENSE`（批准后才创建）、`README.md`、`docs/RELEASE_CHECKLIST.md` |
 | REL-01 | P1 | 发布前检查、GitHub核验与学习型v1总结 | 待开始 | 现有绿色基线不是后续修改的自动验收 | 全部必需任务；正式开源发布还依赖 OSS-03 | 检查秘密/私人数据、文档链接、测试证据、非生产限制和未决项；推送后核对远端commit与该commit CI；逐项更新本表，不把本地文件称已发布；总结讲清已完成/未验收/延期 | 本表、`docs/RELEASE_CHECKLIST.md`、当前验收报告、`README.md` |
 | LIVE-01 | P2（独立可选） | 小规模真实模型全栈功能smoke | 阻塞 | 仅独立极小请求已成功；未有全栈live运行证据；默认Compose不透传live配置 | 私密配置＋明确调用授权＋可用执行环境；MOD-WORKER、DOC-01 | 先准备显式opt-in配置，不改默认CI；授权后少量普通回答/一次只读工具/安全失败处理验证即可；记录模式/响应/SQL与Mongo提交，无需30条全live和精细评分；失败场景优先离线注入，不故意制造收费循环 | 可选live配置/说明、最小smoke脚本、脱敏报告；不保存真实key、私人endpoint或用户输入 |
@@ -175,4 +175,4 @@
 下一组任务ID：
 ```
 
-初始登记：本页完成了任务拆分和源码/文档初读；**没有据此把后续审计、实现、测试或发布标为已完成**。执行人应在每轮把表格里的现存依据替换/补充为真实结果，而不是把该计划当作验收报告。
+首轮登记：计划已先发布于 `d4417229`。模块审计、入口文档校正与外部资料核对已完成；代码修复和新增真实故障测试仍按表标记进行中/待开始。证据与范围见 [开发验收记录](DEVELOPMENT_REPORT.md)，不把旧 CI 的通过当作新代码已通过。

@@ -40,7 +40,7 @@
 - 本轮没有更改依赖锁文件；此前依赖审计零漏洞只是当时证据，本轮没有重新执行audit。安装显式使用`--no-audit`，不把成功构建等同于漏洞审计。
 - 本地较旧Chromium匿名截图仅是历史视觉检查，不能替代这里的真实CI；本报告以新CI的151浏览器结果为准。
 - 未验收真实模型、单Agent工具循环、Firefox/Safari、Windows Docker、Kubernetes、生产压测、高可用、备份恢复或公网部署。
-- 未保存或上传浏览器trace、video、storageState、Cookie、CSRF、密码或.env。只使用隔离测试帐号和公开测试文本。
+- 没有将浏览器trace、video、storageState、Cookie、CSRF、密码或.env加入交付物或上传artifact。只使用隔离测试帐号和公开测试文本。
 - 后续代码变化必须重跑受影响检查；本报告不证明未来提交自动通过。
 
 启动和学习顺序见 [UI_GUIDE.md](UI_GUIDE.md)，测试场景见 [UI_TEST_PLAN.md](UI_TEST_PLAN.md)。

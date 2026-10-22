@@ -93,6 +93,9 @@ def main():
         with httpx.Client(base_url=BASE, cookies=state["cookies"], timeout=15) as client:
             r = client.get(f"/api/v1/tasks/{task_id}/results")
             assert r.status_code == 503 and r.json()["error"]["code"] == "document_unavailable", r.text
+            actions = client.get(f"/api/v1/tasks/{task_id}/agent-steps")
+            assert actions.status_code == 503, actions.text
+            assert actions.json()["error"]["code"] == "document_unavailable"
             assert client.get("/healthz").status_code == 200
             assert client.get("/readyz").status_code == 503
             assert sql(task_id)["status"] == "succeeded"
@@ -112,6 +115,11 @@ def main():
                         time.sleep(1)
                         continue
                     assert result.status_code == 200
+                    actions = client.get(f"/api/v1/tasks/{task_id}/agent-steps")
+                    assert actions.status_code == 200, actions.text
+                    assert actions.json()["availability"] == "committed"
+                    assert actions.json()["controller_mode"] == "scripted_test"
+                    assert actions.json()["items"][-1]["kind"] == "final"
                     if os.getenv("EXPECT_REDIS_DOWN") == "1":
                         assert result.json()["cache_status"] == "unavailable"
                     if action == "complete-retain":

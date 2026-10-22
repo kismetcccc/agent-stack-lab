@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 "${DC[@]}" build integration
-"${DC[@]}" run --rm --no-deps integration -q /tests/integration/test_chain.py /tests/integration/test_api_contract.py --junitxml=/reports/integration.xml
+"${DC[@]}" run --rm --no-deps integration -q /tests/integration/test_chain.py /tests/integration/test_api_contract.py /tests/integration/test_single_agent.py --junitxml=/reports/integration.xml
 probe() { "${DC[@]}" run --rm --no-deps --entrypoint python integration /tests/integration/outage_probe.py "$1"; }
 # Crash-window/fence tests require exclusive executor ownership.
 docker compose stop worker

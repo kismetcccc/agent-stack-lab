@@ -1,10 +1,9 @@
 """真实适配器与显式 test/demo 适配器，网络调用不能位于 SQL 事务中。"""
 
+import asyncio
 import json
-import os
-from datetime import UTC, datetime
 
-from backend.domain import PermanentError, TransientError
+from backend.domain import TransientError
 
 
 class MemoryDocuments:
@@ -99,55 +98,19 @@ class Model:
         self.settings = settings
 
     def run(self, task):
-        if task.model_mode != self.settings.model_mode:
-            raise PermanentError("task model mode differs from worker configuration")
-        if self.settings.model_mode == "deterministic":
-            content = "[deterministic 教学模式，无真实模型调用]\n" + task.prompt.strip()
-        elif self.settings.model_mode == "live" and self.settings.live_enabled:
-            import httpx
+        from backend.agent import ScriptedController, run_agent
+        from backend.agent_errors import AgentConfigurationError
+        from backend.agent_provider import LiveController
 
-            key = os.getenv("MODEL_API_KEY", "")
-            base = os.getenv("MODEL_BASE_URL", "")
-            model = os.getenv("MODEL_NAME", "")
-            if not key or not base.startswith("https://") or not model:
-                raise PermanentError("live model configuration missing")
-            try:
-                response = httpx.post(
-                    base.rstrip("/") + "/chat/completions",
-                    headers={"Authorization": "Bearer " + key},
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": task.prompt}],
-                        "max_tokens": 512,
-                    },
-                    timeout=30,
-                )
-                if response.status_code == 429 or response.status_code >= 500:
-                    raise TransientError("provider temporarily unavailable")
-                if response.status_code >= 400:
-                    raise PermanentError("provider rejected request")
-                content = response.json()["choices"][0]["message"]["content"]
-            except (httpx.TimeoutException, httpx.NetworkError) as exc:
-                raise TransientError("provider network error") from exc
+        if task.model_mode != self.settings.model_mode:
+            raise AgentConfigurationError("task model mode differs from worker configuration")
+        if self.settings.model_mode == "deterministic":
+            controller = ScriptedController()
+        elif self.settings.model_mode == "live":
+            controller = LiveController(self.settings)
         else:
-            raise PermanentError("live model calls not authorized by configuration")
-        timestamp = datetime.now(UTC).isoformat()
-        return {
-            "task_id": task.id,
-            "attempt_id": task.attempt_id,
-            "content": content,
-            "model_mode": self.settings.model_mode,
-            "steps": [
-                {
-                    "id": task.attempt_id + ":1",
-                    "task_id": task.id,
-                    "sequence": 1,
-                    "kind": "summary",
-                    "content": "完成受限文本处理；未调用 shell、任意 URL 或文件工具。",
-                    "created_at": timestamp,
-                }
-            ],
-        }
+            raise AgentConfigurationError("unsupported model mode")
+        return asyncio.run(run_agent(task, controller))
 
 
 class ProgressCache:

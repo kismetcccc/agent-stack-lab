@@ -28,9 +28,11 @@ import {
   type Session,
   type Step,
   type Task,
+  type TaskResult,
 } from "./api";
 import { chapters, components, statusNames } from "./content";
 import { Explorer, roles } from "./Explorer";
+import AgentActions, { controllerLabel } from "./AgentActions";
 type Health = {
   mode?: string;
   model_mode?: string;
@@ -80,6 +82,10 @@ function App() {
       outcome: string;
     }[]
   >([]);
+  const [resultMeta, setResultMeta] = useState<{
+    execution_kind?: string;
+    controller_mode?: string;
+  } | null>(null);
   const [cache, setCache] = useState<{ status: string; time: string } | null>(
     null,
   );
@@ -127,6 +133,7 @@ function App() {
       setAttempts([]);
       setResult("");
       setCache(null);
+      setResultMeta(null);
       setListError("");
       setDetailError("");
     }
@@ -287,6 +294,7 @@ function App() {
     setResult("");
     setAttempts([]);
     setCache(null);
+    setResultMeta(null);
     setDetailError("");
     setDetailLoading(false);
   }, [selected, session, page]);
@@ -321,15 +329,23 @@ function App() {
         });
         let r = "";
         let cacheValue: string | null = null;
+        let nextMeta: {
+          execution_kind?: string;
+          controller_mode?: string;
+        } | null = null;
         if (t.result_available && t.status === "succeeded") {
-          const data = await request<{
-            content: unknown;
-            cache_status: string;
-          }>(`/tasks/${encodeURIComponent(selected)}/results`, {
-            signal: c.signal,
-          });
+          const data = await request<TaskResult>(
+            `/tasks/${encodeURIComponent(selected)}/results`,
+            {
+              signal: c.signal,
+            },
+          );
           r = stringify(data.content);
           cacheValue = data.cache_status;
+          nextMeta = {
+            execution_kind: data.execution_kind,
+            controller_mode: data.controller_mode,
+          };
         }
         if (!stopped && identityEpoch.current === epoch) {
           latestDetails.current.set(t.id, t);
@@ -342,6 +358,7 @@ function App() {
           setEvents(e.items);
           setAttempts(a.items);
           setResult(r);
+          setResultMeta(nextMeta);
           if (cacheValue)
             setCache({ status: cacheValue, time: new Date().toISOString() });
           setDetailError("");
@@ -686,7 +703,9 @@ function App() {
                           id="prompt"
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
-                          placeholder="例如：解释为什么 Agent 任务需要 Outbox，并比较 MySQL、Kafka、MongoDB 和 Redis 的职责。"
+                          placeholder={
+                            "目标：[search:销量] [stats]\n材料：销量 10 20 30"
+                          }
                           required
                           minLength={3}
                           maxLength={4000}
@@ -708,7 +727,8 @@ function App() {
                           {submitting ? "正在提交…" : "提交报告任务"}
                         </button>
                         <p className="form-hint">
-                          提交后通过真实 API
+                          脚本示例：目标：[search:销量] [stats]；材料：销量 10
+                          20 30。脚本测试无真实模型推理。提交后通过真实 API
                           轮询；中断网络时重试沿用幂等键，避免重复创建任务。
                         </p>
                       </form>
@@ -882,7 +902,7 @@ function App() {
                             )}
                           </div>
                           <div className="timeline-heading">
-                            <h3>组件调用与事件</h3>
+                            <h3>后台生命周期</h3>
                             <span>MySQL 中持久化的生命周期记录</span>
                           </div>
                           <p className="event-disclaimer">
@@ -942,6 +962,17 @@ function App() {
                               ))
                             )}
                           </details>
+                          <AgentActions
+                            key={`${task.id}:${identityEpoch.current}`}
+                            task={task}
+                            polling={polling}
+                            refreshKey={refresh}
+                            sessionEpoch={identityEpoch.current}
+                            onUnauthorized={(epoch) => {
+                              if (identityEpoch.current === epoch)
+                                applySession(null);
+                            }}
+                          />
                           {task.status === "succeeded" &&
                           task.result_available ? (
                             <div className="result">
@@ -958,6 +989,15 @@ function App() {
                                 {cache ? formatTime(cache.time) : "未知"}
                                 <br />
                                 此状态来自本次结果读取，不是持续在线探针。
+                              </p>
+                              <p
+                                className="result-execution-mode"
+                                data-testid="result-execution-mode"
+                              >
+                                {controllerLabel(
+                                  resultMeta?.execution_kind,
+                                  resultMeta?.controller_mode,
+                                )}
                               </p>
                               <pre data-testid="report-content">{result}</pre>
                             </div>

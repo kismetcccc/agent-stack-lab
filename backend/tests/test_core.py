@@ -67,7 +67,7 @@ def test_pipeline_duplicate_inbox_and_result(runtime):
     assert runtime.tasks.execute_once()
     assert runtime.tasks.get("owner", task["id"])["status"] == "succeeded"
     assert "deterministic" in runtime.tasks.document("owner", task["id"])["content"]
-    assert len(runtime.tasks.document("owner", task["id"], True)["items"]) == 1
+    assert len(runtime.tasks.document("owner", task["id"], True)["items"]) == 3
     assert not runtime.tasks.execute_once()
 
 

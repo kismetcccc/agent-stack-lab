@@ -58,3 +58,14 @@ APP_ORIGIN 必须与浏览器完全一致：`http://localhost:8081`。不使用1
 本地匿名截图：`test-results/ui-preview/` 下 desktop/mobile 的 architecture、mysql-detail、query-redis。未知健康状态保持可见，不是全链路证据。首次移动keyboard测试依赖隐藏节点序号而失败，已修正为实际组件可访问名称并重跑4项通过。
 
 发布前升级：`@playwright/test`精确1.62.1、lock更新；`npm audit --audit-level=high`返回0 vulnerabilities；完整18项成功列出。浏览器官方CDN下载问题单独记录，不把依赖安装成功当作浏览器新版本通过。
+
+## 后续：单 Agent 扩展（独立于上述已验收 UI 基线）
+
+状态：**代码与测试已编写，真实基础设施/浏览器回归尚未运行**。上述382da456的18项成功不能作为此扩展的成功证据。
+
+- 新增 `tests/e2e/single-agent.spec.ts`：3场景×1440/390，共6项；连同原18项共24项，`playwright test --list`已通过。涵盖脚本read/search/stats的参数/观察逐项对照真实API、与MySQL后台生命周期分区、脚本非真实推理标识、刷新及缓存、XSS文本、退出清理、工具拒绝后not_committed诚实空态、延迟旧动作响应隔离、严格页面宽度检查。
+- 新增 `tests/integration/test_single_agent.py`：4项；加原7项与recovery2项共13项，collection已通过。新文件已明确纳入 `scripts/test-integration.sh` 主pytest，不跳过真实服务。
+- 多步持久化检查Mongo原文/SQL attempt/result引用、Redis缓存、真实Kafka重复交付与inbox去重、401/404；两种旧结果fixture验证legacy标识与不可变文档不改写；不支持的数值材料必须永久失败且不能返回未提交动作。
+- 原recovery2项增强未完成/失败动作不可见、过期fence旧文档不成为可见动作；原故障编排保留，Mongo读停机时agent-steps必须503而非伪空，Redis停机恢复路径仍可读取已提交动作。
+- 脚本示例（不是live LLM）：`目标：[search:销量] [stats]\n材料：销量 10 20 30`。仅离线Model.run校验了浏览器带XSS文本示例仍产生7个动作、count3/sum60/mean20；这不是基础设施或浏览器执行证据。
+- 未在云端启动本地浏览器或绕过其沙箱限制；待授权GitHub CI使用官方151、sandbox开启与真实四组件执行。真实provider验收仍等待独立配置/授权；未启用live或调用npm audit。

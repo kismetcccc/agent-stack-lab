@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from backend.agent_errors import AGENT_ERROR_CODES
 from backend.db import Attempt, Inbox, Outbox, Task, TaskEvent, now
 from backend.domain import PermanentError, transition
 from backend.faults import pause_at
@@ -166,7 +167,12 @@ class TaskService:
             task = self.owned(session, owner, task_id)
             if task.status != "succeeded" or not task.result_id:
                 if steps:
-                    return {"items": []}
+                    return {
+                        "items": [],
+                        "availability": "not_committed",
+                        "execution_kind": None,
+                        "controller_mode": None,
+                    }
                 raise ServiceError(409, "result_not_ready", "任务尚未成功")
             result_id = task.result_id
         try:
@@ -179,11 +185,34 @@ class TaskService:
             raise ServiceError(503, "document_unavailable", "结果存储暂不可用") from exc
         if not doc:
             raise ServiceError(503, "document_unavailable", "结果文档暂不可读")
-        return (
-            {"items": doc["steps"][:100]}
-            if steps
-            else {**{k: doc[k] for k in ("task_id", "content", "model_mode")}, "cache_status": cache_status}
-        )
+        is_agent = doc.get("execution_kind") == "single_agent" and doc.get("controller_mode") in {
+            "scripted_test",
+            "live_llm",
+        }
+        legacy = "execution_kind" not in doc and "controller_mode" not in doc
+        if not is_agent and not legacy:
+            raise ServiceError(503, "document_unavailable", "结果文档元数据无效")
+        metadata = {
+            "execution_kind": "single_agent" if is_agent else "legacy_single_call",
+            "controller_mode": doc["controller_mode"]
+            if is_agent
+            else (
+                "legacy_deterministic_echo"
+                if doc["model_mode"] == "deterministic"
+                else "legacy_live_single_call"
+            ),
+        }
+        if steps:
+            return {
+                "items": doc["steps"][:100] if is_agent else [],
+                "availability": "committed" if is_agent else "legacy",
+                **metadata,
+            }
+        return {
+            **{k: doc[k] for k in ("task_id", "content", "model_mode")},
+            "cache_status": cache_status,
+            **metadata,
+        }
 
     def dto(self, task):
         return {
@@ -307,7 +336,11 @@ class TaskService:
                         session,
                         task,
                         isinstance(exc, PermanentError),
-                        "permanent_failure" if isinstance(exc, PermanentError) else "transient_failure",
+                        getattr(exc, "code", None)
+                        if getattr(exc, "code", None) in AGENT_ERROR_CODES
+                        else (
+                            "permanent_failure" if isinstance(exc, PermanentError) else "transient_failure"
+                        ),
                     )
         return True
 

@@ -65,3 +65,33 @@ export async function request<T>(
 }
 export const message = (e: unknown) =>
   e instanceof Error ? e.message : "网络请求失败，请检查服务连接。";
+
+export type AgentStep = {
+  id: string;
+  task_id: string;
+  sequence: number;
+  kind: "tool_call" | "tool_result" | "final";
+  content: unknown;
+  created_at: string;
+  attempt_id: string;
+  execution_kind: string;
+  controller_mode: string;
+  tool_name?: string;
+  arguments?: unknown;
+  result?: unknown;
+  truncated?: boolean;
+};
+export type AgentStepsResponse = {
+  items: AgentStep[];
+  availability: "committed" | "not_committed" | "legacy";
+  execution_kind: string | null;
+  controller_mode: string | null;
+};
+export type TaskResult = {
+  task_id: string;
+  content: unknown;
+  model_mode: string;
+  cache_status: string;
+  execution_kind?: string;
+  controller_mode?: string;
+};

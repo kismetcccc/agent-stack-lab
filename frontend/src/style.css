@@ -3104,3 +3104,153 @@ summary:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.agent-actions {
+  margin: 20px 23px 24px;
+  border-top: 1px solid #e6e6dd;
+  padding-top: 20px;
+  min-width: 0;
+}
+.agent-actions-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #686e5d;
+  flex-wrap: wrap;
+}
+.agent-actions-heading h3 {
+  font-size: 14px;
+  font-weight: 500;
+}
+.agent-actions-heading > span {
+  font-size: 10px;
+  color: #8a8e80;
+  margin-left: auto;
+}
+.agent-boundary {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #85877b;
+  margin-top: 10px;
+}
+.agent-empty {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #808476;
+  margin-top: 14px;
+  background: #f8f9f4;
+  border: 1px solid #eceee4;
+  padding: 12px;
+  border-radius: 6px;
+}
+.agent-mode,
+.result-execution-mode {
+  font-size: 11px;
+  line-height: 1.8;
+  background: #f5f3ea;
+  color: #8c7d55;
+  border: 1px solid #e9e2ce;
+  padding: 9px 11px;
+  border-radius: 5px;
+  margin-top: 13px;
+}
+.agent-step-list {
+  padding: 0;
+  margin: 17px 0 0;
+  list-style: none;
+}
+.agent-step-list li {
+  padding: 13px 0;
+  border-top: 1px solid #eceee4;
+  min-width: 0;
+}
+.agent-step-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #68715a;
+}
+.agent-step-heading > span {
+  font: 10px monospace;
+  color: #9ba48c;
+}
+.agent-step-heading strong {
+  font-weight: 500;
+}
+.agent-step-heading code {
+  font-size: 11px;
+  background: #f3f5ed;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+.agent-step-list pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    12px/1.9 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  color: #707963;
+  max-height: 250px;
+  overflow: auto;
+  padding: 12px;
+  background: #f8faf5;
+  border-radius: 5px;
+  margin: 9px 0;
+}
+.agent-field-label {
+  display: block;
+  font-size: 10px;
+  color: #98a088;
+  margin-top: 12px;
+}
+.agent-step-list details {
+  font-size: 10px;
+  color: #90997e;
+  margin-top: 9px;
+}
+.agent-step-list summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-step-list details code {
+  display: block;
+  font-size: 10px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+  margin-top: 8px;
+}
+.agent-truncated {
+  font-size: 10px;
+  color: #a08d5d;
+}
+.agent-actions .notice {
+  font-size: 12px;
+}
+.result-execution-mode {
+  font-size: 11px;
+}
+.agent-step-list pre:focus-visible {
+  outline: 2px solid #8b967c;
+}
+@media (max-width: 680px) {
+  .agent-actions {
+    margin-inline: 18px;
+  }
+  .agent-actions-heading > span {
+    font-size: 10px;
+  }
+  .agent-actions-heading h3 {
+    font-size: 13px;
+  }
+  .agent-step-list pre {
+    font-size: 11px;
+  }
+  .agent-boundary,
+  .agent-empty {
+    font-size: 12px;
+  }
+}

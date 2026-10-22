@@ -38,6 +38,14 @@ def service(stores):
 def test_replay_ack_gap_and_expired_lease_fencing(user, service):
     task_id = submit(user)["id"]
     assert user.get(f"/api/v1/tasks/{task_id}/results").status_code == 409
+    actions = user.get(f"/api/v1/tasks/{task_id}/agent-steps")
+    assert actions.status_code == 200
+    assert actions.json() == {
+        "items": [],
+        "availability": "not_committed",
+        "execution_kind": None,
+        "controller_mode": None,
+    }
     with service.sessions() as session:
         outbox = session.scalar(select(Outbox).where(Outbox.task_id == task_id))
         event = json.loads(outbox.payload)
@@ -55,6 +63,7 @@ def test_replay_ack_gap_and_expired_lease_fencing(user, service):
         assert session.get(Task, task_id).status == "ready"
     claimed = service.claim()
     assert claimed.id == task_id
+    stale_document = service.model.run(claimed)  # Execute while lease budget is still valid.
     with service.sessions() as session, session.begin():
         session.get(Task, task_id).lease_until = now() - 1
     assert service.finalize(claimed, "must-not-commit") is False
@@ -68,7 +77,7 @@ def test_replay_ack_gap_and_expired_lease_fencing(user, service):
     assert replacement.id == task_id and replacement.fence > claimed.fence
     # Persist an old attempt document: orphan must never become committed result.
     stale_id = task_id + ":" + claimed.attempt_id
-    service.documents.save(stale_id, service.model.run(claimed))
+    service.documents.save(stale_id, stale_document)
     assert service.finalize(claimed, stale_id) is False
     result_id = task_id + ":" + replacement.attempt_id
     service.documents.save(result_id, service.model.run(replacement))
@@ -80,6 +89,10 @@ def test_replay_ack_gap_and_expired_lease_fencing(user, service):
         assert task.attempt_count == 2
         assert session.get(Attempt, claimed.attempt_id).outcome == "lease_expired"
     assert user.get(f"/api/v1/tasks/{task_id}/results").status_code == 200
+    actions = user.get(f"/api/v1/tasks/{task_id}/agent-steps").json()
+    assert actions["availability"] == "committed"
+    assert actions["items"]
+    assert {step["attempt_id"] for step in actions["items"]} == {replacement.attempt_id}
 
 
 def test_bounded_retry_emits_durable_dlq(user, service):
@@ -94,6 +107,14 @@ def test_bounded_retry_emits_durable_dlq(user, service):
 
     task_id = submit(user)["id"]
     assert user.get(f"/api/v1/tasks/{task_id}/results").status_code == 409
+    actions = user.get(f"/api/v1/tasks/{task_id}/agent-steps")
+    assert actions.status_code == 200
+    assert actions.json() == {
+        "items": [],
+        "availability": "not_committed",
+        "execution_kind": None,
+        "controller_mode": None,
+    }
     with service.sessions() as session:
         event = json.loads(session.scalar(select(Outbox).where(Outbox.task_id == task_id)).payload)
     service.relay_once()
@@ -136,3 +157,11 @@ def test_bounded_retry_emits_durable_dlq(user, service):
     finally:
         consumer.close()
     assert user.get(f"/api/v1/tasks/{task_id}/results").status_code == 409
+    actions = user.get(f"/api/v1/tasks/{task_id}/agent-steps")
+    assert actions.status_code == 200
+    assert actions.json() == {
+        "items": [],
+        "availability": "not_committed",
+        "execution_kind": None,
+        "controller_mode": None,
+    }

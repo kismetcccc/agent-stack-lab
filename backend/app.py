@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Literal
 
 from fastapi import FastAPI, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -34,6 +35,42 @@ class TaskInput(BaseModel):
         if not value:
             raise ValueError("prompt must not be blank")
         return value
+
+
+class AgentStep(BaseModel):
+    id: str
+    task_id: str
+    attempt_id: str
+    sequence: int
+    kind: Literal["tool_call", "tool_result", "final"]
+    content: str
+    created_at: str
+    execution_kind: Literal["single_agent"]
+    controller_mode: Literal["scripted_test", "live_llm"]
+    tool_name: str | None = None
+    arguments: dict | None = None
+    result: dict | None = None
+    truncated: bool | None = None
+
+
+ExecutionKind = Literal["single_agent", "legacy_single_call"]
+ControllerMode = Literal["scripted_test", "live_llm", "legacy_deterministic_echo", "legacy_live_single_call"]
+
+
+class AgentStepsResponse(BaseModel):
+    items: list[AgentStep]
+    availability: Literal["committed", "not_committed", "legacy"]
+    execution_kind: ExecutionKind | None
+    controller_mode: ControllerMode | None
+
+
+class ResultResponse(BaseModel):
+    task_id: str
+    content: str
+    model_mode: Literal["deterministic", "live"]
+    cache_status: Literal["hit", "miss", "unavailable", "disabled"]
+    execution_kind: ExecutionKind
+    controller_mode: ControllerMode
 
 
 def create_app(runtime=None):
@@ -208,7 +245,15 @@ def create_app(runtime=None):
     def attempts(task_id: str, request: Request):
         return runtime.tasks.attempts(auth.identity(request)["id"], task_id)
 
-    @app.get("/api/v1/tasks/{task_id}/results")
+    @app.get(
+        "/api/v1/tasks/{task_id}/agent-steps",
+        response_model=AgentStepsResponse,
+        response_model_exclude_unset=True,
+    )
+    def agent_steps(task_id: str, request: Request):
+        return runtime.tasks.document(auth.identity(request)["id"], task_id, steps=True)
+
+    @app.get("/api/v1/tasks/{task_id}/results", response_model=ResultResponse)
     def results(task_id: str, request: Request):
         return runtime.tasks.document(auth.identity(request)["id"], task_id)
 

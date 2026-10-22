@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **已验证**：提交 `382da456` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39720266829) 通过20项后端单元/API、9项真实组件测试、17项前端单元和18项桌面/移动浏览器测试。详见 [UI验收报告](docs/UI_TEST_REPORT.md) 与 [首轮后端报告](docs/TEST_REPORT.md)。四个存储/消息组件均真实运行；模型仍为deterministic，不产生真实模型调用。受限单Agent正在按 [先行契约](docs/SINGLE_AGENT.md) 开发，尚未验收。Kubernetes继续延期；项目不是生产就绪平台，不应直接暴露公网。
+> **已验证**：提交 `382da456` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39720266829) 通过20项后端单元/API、9项真实组件测试、17项前端单元和18项桌面/移动浏览器测试。详见 [UI验收报告](docs/UI_TEST_REPORT.md) 与 [首轮后端报告](docs/TEST_REPORT.md)。四个存储/消息组件均真实运行；模型仍为deterministic，不产生真实模型调用。受限单Agent已按 [先行契约](docs/SINGLE_AGENT.md) 实现，新增真实链路仍待独立验收。Kubernetes继续延期；项目不是生产就绪平台，不应直接暴露公网。
 
 ## 不熟悉这些组件？先看一个小例子
 

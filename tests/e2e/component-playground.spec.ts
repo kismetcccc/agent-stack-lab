@@ -5,6 +5,29 @@ import {noPageOverflow, password, requireRealBackend, screenshot} from './helper
 const api = '/api/v1/lab';
 const unique = () => `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
+async function workbenchGeometry(page: Page, component: string) {
+  const panel = page.getByTestId(`component-${component}`);
+  const grid = panel.locator('.lab-workbench-grid');
+  await expect(grid).toBeVisible();
+  const section = (await panel.boundingBox())!;
+  const workspace = (await grid.boundingBox())!;
+  const editor = (await grid.locator('.lab-editor').boundingBox())!;
+  const results = (await grid.locator('.lab-results').boundingBox())!;
+  // Overflow alone misses a legacy grid rule squeezing controls into half a page.
+  expect(Math.abs(workspace.width - section.width), 'workbench fills available component width').toBeLessThanOrEqual(2);
+  expect(Math.abs(editor.x - workspace.x), 'editor starts at workbench left edge').toBeLessThanOrEqual(2);
+  expect(Math.abs(results.x + results.width - workspace.x - workspace.width), 'results reach workbench right edge').toBeLessThanOrEqual(2);
+  if (page.viewportSize()!.width <= 900) {
+    expect(Math.abs(editor.width - workspace.width), 'mobile editor has full width').toBeLessThanOrEqual(2);
+    expect(Math.abs(results.width - workspace.width), 'mobile results have full width').toBeLessThanOrEqual(2);
+    expect(Math.abs(results.x - editor.x), 'mobile panels align').toBeLessThanOrEqual(2);
+    expect(results.y, 'mobile results stack below editor without overlap').toBeGreaterThanOrEqual(editor.y + editor.height);
+  } else {
+    expect(results.x, 'desktop panels use two separate tracks').toBeGreaterThan(editor.x + editor.width);
+    expect(Math.abs(results.y - editor.y), 'desktop panels align at top').toBeLessThanOrEqual(2);
+  }
+}
+
 async function register(page: Page, component: string) {
   await page.goto(`/#${component}`);
   await page.getByRole('button', {name: '没有帐号？创建帐号'}).click();
@@ -13,6 +36,7 @@ async function register(page: Page, component: string) {
   await page.getByRole('button', {name: '注册并登录', exact: true}).click();
   await expect(page.getByRole('button', {name: '退出登录'})).toBeVisible();
   await expect(page.getByTestId(`component-${component}`)).toBeVisible();
+  await workbenchGeometry(page, component);
 }
 
 async function noTaskPrerequisite(page: Page) {
@@ -159,7 +183,7 @@ test.describe('independent personal component playground against real stores', (
     const created = await (await post).json();
     expect(created.document).toEqual(document);
     const item = panel.locator('article.document-item').filter({hasText: created.id});
-    await expect(item).toContainText(document.literal);
+    await expect(item).toContainText(JSON.stringify(document.literal));
     expect(JSON.parse(await item.locator('pre').innerText())).toEqual(document);
     expect(await page.evaluate(() => (window as any).__labXss)).toBeUndefined();
     await expect(item.locator('img,script')).toHaveCount(0);

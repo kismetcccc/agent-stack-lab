@@ -35,7 +35,6 @@ import { Explorer, roles } from "./Explorer";
 import AgentActions, { controllerLabel } from "./AgentActions";
 import PlaygroundHome, { playgrounds } from "./PlaygroundHome";
 import ComponentPlayground from "./ComponentPlayground";
-import "./playground.css";
 type Health = {
   mode?: string;
   model_mode?: string;

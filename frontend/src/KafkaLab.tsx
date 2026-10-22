@@ -108,7 +108,7 @@ export default function KafkaLab(props: LabProps) {
   }
   return (
     <>
-      <div className="component-grid kafka-grid">
+      <div className="lab-workbench-grid">
         <section className="lab-panel lab-editor">
           <div className="lab-section-title">
             <h2>发送一条消息</h2>

@@ -158,13 +158,16 @@
   margin-bottom: 20px;
   line-height: 1.8;
 }
-.component-grid {
+/* Never reuse legacy .component-grid: its architecture-card columns differ. */
+.lab-workbench-grid {
   display: grid;
+  width: 100%;
+  padding: 0;
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
   gap: 22px;
   align-items: start;
 }
-.component-grid > *,
+.lab-workbench-grid > *,
 .lab-panel,
 .lab-panel > * {
   min-width: 0;
@@ -532,9 +535,6 @@
 .ttl-fact small {
   font-size: 12px;
 }
-.kafka-grid {
-  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
-}
 .kafka-history {
   margin-top: 23px;
 }
@@ -713,7 +713,7 @@
   color: #4f5943;
 }
 @media (max-width: 1150px) {
-  .component-grid {
+  .lab-workbench-grid {
     grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.15fr);
     gap: 16px;
   }
@@ -728,7 +728,7 @@
   }
 }
 @media (max-width: 900px) {
-  .component-grid {
+  .lab-workbench-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .kafka-observations {

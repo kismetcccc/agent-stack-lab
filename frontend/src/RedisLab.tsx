@@ -81,7 +81,7 @@ export default function RedisLab(props: LabProps) {
   }
   const remaining = Math.max(0, Math.ceil((deadline.current - now) / 1000));
   return (
-    <div className="component-grid">
+    <div className="lab-workbench-grid">
       <section className="lab-panel lab-editor">
         <div className="lab-section-title">
           <h2>写入一个临时值</h2>

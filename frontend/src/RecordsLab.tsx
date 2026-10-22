@@ -120,7 +120,7 @@ export default function RecordsLab({
     );
   }
   return (
-    <div className="component-grid">
+    <div className="lab-workbench-grid">
       <section className="lab-panel lab-editor">
         <div className="lab-section-title">
           <h2>

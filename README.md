@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **已验证**：提交 `cc17a052` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39715365618) 通过 20 项单元/API 测试、9 项真实组件集成测试和停机恢复实验。详见 [验收报告](docs/TEST_REPORT.md)。MySQL、Kafka、MongoDB、Redis 均真实运行；模型仍为 `deterministic`，不产生真实模型调用。学习型前端已加入独立验收流程，Kubernetes 继续延期；项目不是生产就绪平台，不应直接暴露公网。
+> **已验证**：提交 `382da456` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39720266829) 通过20项后端单元/API、9项真实组件测试、17项前端单元和18项桌面/移动浏览器测试。详见 [UI验收报告](docs/UI_TEST_REPORT.md) 与 [首轮后端报告](docs/TEST_REPORT.md)。四个存储/消息组件均真实运行；模型仍为deterministic，不产生真实模型调用。受限单Agent正在按 [先行契约](docs/SINGLE_AGENT.md) 开发，尚未验收。Kubernetes继续延期；项目不是生产就绪平台，不应直接暴露公网。
 
 ## 不熟悉这些组件？先看一个小例子
 
@@ -31,7 +31,7 @@
 
 ## 当前聚焦：用可选界面理解后端
 
-**后端闭环已完成首轮验收；现在加入可选学习前端，帮助理解 API、MySQL、Kafka、MongoDB、Redis。** Kubernetes 和新增外围组件继续延期。前端不改变任务状态的权威来源，也不伪造消息流或组件在线状态。
+**后端闭环和可选学习前端已完成真实验收，帮助理解 API、MySQL、Kafka、MongoDB、Redis。** Kubernetes 和新增外围组件继续延期。前端不改变任务状态的权威来源，也不伪造消息流或组件在线状态。
 
 界面启动、功能边界和学习顺序见 [学习界面指南](docs/UI_GUIDE.md)。在已创建本地 `.env` 的前提下：
 

@@ -61,7 +61,7 @@ Kubernetes清单与运行实验当前延期；此表仅用于以后阅读，不�
 | 受限单Agent | 单控制器、三个只读工具、预算与模式区分已实现；脚本测试不是真实LLM验收 |
 | Redis读缓存/限流 | 已实现不可变结果TTL缓存；限流及可变缓存失效待扩展 |
 | 初始迁移 | 显式v1入口；长期版本升级/回滚待扩展 |
-| Prometheus/Grafana/OTel | 有可选基础设施；指标和跨服务trace分别验收 |
+| Prometheus/Grafana/OTel | 已有API /metrics端点；采集器、Grafana面板和OTel跨服务trace尚未在本轮实现验收 |
 | 对象存储、搜索、持久化调度 | 计划；没有伪造profiles或功能 |
 | 备份恢复、HA、压力容量 | 计划；没有生产SLA承诺 |
 

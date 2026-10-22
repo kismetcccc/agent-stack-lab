@@ -67,11 +67,11 @@ APP_ORIGIN 必须与浏览器完全一致：`http://localhost:8081`。不使用1
 - 新增 `tests/integration/test_single_agent.py`：4项；加原7项与recovery2项共13项，真实CI以11+2项全部通过，0失败/错误/跳过。新文件已明确纳入 `scripts/test-integration.sh` 主pytest，不跳过真实服务。
 - 多步持久化检查Mongo原文/SQL attempt/result引用、Redis缓存、真实Kafka重复交付与inbox去重、401/404；两种旧结果fixture验证legacy标识与不可变文档不改写；不支持的数值材料必须永久失败且不能返回未提交动作。
 - 原recovery2项增强未完成/失败动作不可见、过期fence旧文档不成为可见动作；原故障编排保留，Mongo读停机时agent-steps必须503而非伪空，Redis停机恢复路径仍可读取已提交动作。
-- 脚本示例（不是live LLM）：`目标：[search:销量] [stats]\n材料：销量 10 20 30`。仅离线Model.run校验了浏览器带XSS文本示例仍产生7个动作、count3/sum60/mean20；这不是基础设施或浏览器执行证据。
+- 脚本示例（不是live LLM）：`目标：[search:销量] [stats]\n材料：销量 10 20 30`。编写时先用离线Model.run校验带XSS文本的示例；本轮另以真实CI验证7个动作、count3/sum60/mean20，不能只凭离线校验计为通过。
 - 未在云端启动本地浏览器或绕过其沙箱限制；已在授权GitHub CI使用官方151、sandbox开启与真实四组件执行。真实provider验收仍等待独立配置/授权；未启用live或调用npm audit。
 
 单Agent证据复核：独立下载并解析JUnit确认13真实集成与24浏览器通过；CI日志另确认140后端单元、30前端单元通过。两张新增Agent桌面/移动全页图位于 `test-results/ci-39721645077/ui/test-results/browser-artifacts/single-agent-*`；字段逐项对照真实HTTP响应、步骤持久化与缓存语义有断言，不仅是截图。
 
 - UI artifact `12401338075`，ZIP SHA256 `7f43114bf677da1b06d89accb2dba29b4f6e7e88d73b7cb266563ac0f81fd3a1`。
 - 真实集成 artifact `12401437064`，ZIP SHA256 `df58d73d5279a09732b5b09b05417e38d6e1904639cc4f20570f844b86f70838`。
-- 本地实际计算ZIP摘要与CI上传摘要一致；未上传Library，未记录会话trace。真实LLM仍未调用、未验收。
+- 本地实际计算ZIP摘要与CI上传摘要一致；未记录会话trace。真实LLM仍未调用、未验收。

@@ -24,8 +24,8 @@ jobs:
       - run: uv sync --frozen
       - name: Backend lint and unit tests (no infrastructure mocks counted as integration)
         run: |
-          uv run ruff check backend
-          uv run pytest backend/tests -m 'not integration' --junitxml=artifacts/unit.xml
+          uv run ruff check backend tests/judge
+          uv run pytest backend/tests tests/judge/test_capture.py -m 'not integration' --junitxml=artifacts/unit.xml
       - name: Validate manifests without connecting to a daemon
         run: |
           python scripts/infra-init-env.py
@@ -56,6 +56,19 @@ jobs:
         run: docker compose up -d --wait --wait-timeout 300
       - name: Real MySQL / Kafka / MongoDB / Redis integration and failure recovery
         run: bash scripts/test-integration.sh
+      - name: Capture frozen judge cases (capture integrity only, not semantic acceptance)
+        env:
+          JUDGE_COMMIT: ${{ github.sha }}
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml run --rm --no-deps \
+            -e JUDGE_COMMIT -e PYTHONPATH=/app --entrypoint python integration \
+            /tests/judge/capture.py --output /reports/judge-evidence.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: judge-sanitized-evidence
+          path: test-results/judge-evidence.json
+          if-no-files-found: error
       - name: Capture state and redacted logs
         if: always()
         run: |
@@ -130,6 +143,7 @@ jobs:
             artifacts/ui/services.log
             test-results/browser.xml
             test-results/browser-artifacts/**/*.png
+            test-results/browser-artifacts/**/judge-observations.json
             !test-results/**/outage-state.json
             !test-results/**/storageState.json
             !test-results/**/*.zip

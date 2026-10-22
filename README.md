@@ -1,10 +1,10 @@
 # Agent Stack Lab
 
-**用一个 Agent 任务平台，学习一条请求如何经过前端、API、数据库、消息系统和后台执行器。**
+**用一个任务平台，学习一次后端请求如何经过 API、数据库、消息系统和后台执行器。**
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **当前边界**：代码与部署脚本正在完成首轮验收。云端开发环境没有 Docker；Compose 和 Kind 的运行结果必须以实际 CI 记录为准，不能从配置文件存在推断成功。默认 `deterministic` 模式不调用真实模型，不是完整自主 Agent。项目不是生产就绪平台，不应直接暴露公网。
+> **已验证**：提交 `cc17a052` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39715365618) 通过 20 项单元/API 测试、9 项真实组件集成测试和停机恢复实验。详见 [验收报告](docs/TEST_REPORT.md)。MySQL、Kafka、MongoDB、Redis 均真实运行；模型仍为 `deterministic`，不产生真实模型调用。前端和 Kubernetes 延期，项目不是生产就绪平台，不应直接暴露公网。
 
 ## 不熟悉这些组件？先看一个小例子
 
@@ -15,7 +15,7 @@
 - **Kafka像传单通道**：把“有新任务”交给后台；它不是查询订单当前状态的账本。
 - **Worker像实际干活的人**：领取任务，调用文本/模型处理，把结果保存。
 - **MongoDB像成果档案袋**：装本次执行的结果和不同形状的步骤信息。
-- **Redis像临时状态看板**：显示短期进度；看板坏了不能把账本里的任务也弄丢。
+- **Redis像临时看板和复印件柜**：保存短期进度，缓存已完成结果，重复查询少访问 MongoDB；缓存丢了也不能把账本里的任务弄丢。
 
 先记住这六句话，不必马上理解Outbox、Inbox、租约和fencing。后面的章节才解释它们分别防哪一种故障。**把整套服务运行起来，不代表必须一次理解全部。**
 
@@ -31,7 +31,7 @@
 
 ## 当前聚焦：先把后端理清楚
 
-**当前只做 API、MySQL、Kafka、MongoDB、Redis 的后端闭环。前端和新增外围组件暂停。** Kubernetes 仅保留后续学习章节，不是当前验收目标。之前产生的前端/部署实验文件不表示它们已完成或本轮继续展开。
+**当前只做 API、MySQL、Kafka、MongoDB、Redis 的后端闭环。前端和新增外围组件暂停。** Kubernetes 仅保留后续学习章节，不是当前验收目标。前端与部署扩展草稿未作为本轮仓库交付。
 
 ```text
 curl / HTTP客户端 → API → MySQL（任务状态的账本）
@@ -47,9 +47,9 @@ curl / HTTP客户端 → API → MySQL（任务状态的账本）
 
 Redis 保存可失效的进度提示和不可变结果缓存，不决定任务是否完成。`progress` 是阶段值，不是模型完成的精确百分比。先读[逐步调用导读](docs/ARCHITECTURE.md)，再做[curl实验](docs/FAILURE_LABS.md)。
 
-## 后端启动（需在有 Docker 的环境验收）
+## 后端启动（Compose 链路已在 CI 验证）
 
-要求 Docker Engine/Desktop 和 Compose v2、Python 3；Windows 建议 WSL2。命令已与基础设施负责人核对，**当前云端没有 Docker，真实运行以 CI 对应 commit 的记录为准**。
+要求 Docker Engine/Desktop 和 Compose v2、Python 3；Windows 建议 WSL2。以下流程已在 Linux GitHub Actions 的真实 Docker 环境执行；你的本地环境仍须满足这些前提。当前未宣称完成 Windows Docker 或 Kubernetes 验收。
 
 ```bash
 python scripts/infra-init-env.py
@@ -85,7 +85,7 @@ docker compose down
 
 ## 完成度与限制
 
-首轮交付包含接口、会话/CSRF、任务幂等、状态机、事务 Outbox/Inbox、租约重试和四组件适配器，；前端与部署扩展本轮暂停。**代码存在、静态检查通过、真实集成通过是三个不同层级**，最终验收报告需给出所测 commit 和检查结果。
+首轮交付包含接口、会话/CSRF、任务幂等、状态机、事务 Outbox/Inbox、租约重试和四组件适配器；前端与部署扩展本轮暂停。**代码存在、静态检查通过、真实集成通过是三个不同层级**，最终验收报告需给出所测 commit 和检查结果。
 
 当前重点限制：单 relay/worker 起步；认证没有邮件验证、找回、MFA；模型仅做受限文本处理；尚无完整工具规划、RAG、对象存储、搜索或持久化定时调度；日志/指标/trace 分别验收；没有高可用和灾备承诺。不要将开发模式 `production` 字样理解为安全认证。
 

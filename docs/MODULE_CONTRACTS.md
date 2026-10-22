@@ -208,7 +208,7 @@ LIMIT 100;
 ```bash
 # 与 CI 同类的离线功能回归；不启动外部服务，不调用真实 provider。
 uv run pytest backend/tests tests/judge/test_capture.py -m 'not integration'
-uv run ruff check backend tests/judge
+uv run ruff check backend tests/judge scripts/infra-init-env.py scripts/test-http-smoke.py scripts/test-build-context.py
 
 # 单独读一个模块时缩小测试范围，仍然不是“真实集成通过”。
 uv run pytest backend/tests/test_core.py
@@ -220,7 +220,7 @@ bash scripts/test-integration.sh
 
 真实集成脚本先跑 11 项正常链路/API/Agent 测试，再独占 Worker 执行 2 项恢复测试，并另跑 Redis/Kafka/Mongo/MySQL 停机和 Worker 重建探针。MySQL 五阶段场景已在 `9f892c67` CI 实跑通过。**这些脚本阶段不全部体现在“13”这个 JUnit 数字中**；应同时核对 CI 步骤和恢复日志。前端的单元、浏览器证据独立，不拿 UI 截图替代后端断言。
 
-`scripts/test-crash-windows.sh` 已修复并接入本轮 CI，验证四个精确 SIGKILL 窗口；新提交的真实运行仍待验收。不能用单元测试或旧提交的标准恢复测试代替它，状态见当前报告。另有 `scripts/test-http-smoke.py` 可执行文档主功能闭环。
+`scripts/test-crash-windows.sh` 已修复并接入本轮 CI，验证四个精确 SIGKILL 窗口；`102491d2` / CI 39731470818 的四窗口已真实运行通过。不能用单元测试或旧提交的标准恢复测试代替它，状态见当前报告。另有 `scripts/test-http-smoke.py` 可执行文档主功能闭环。
 
 ## 7. 配置、迁移、部署与观测的实际能力
 
@@ -261,7 +261,7 @@ bash scripts/test-integration.sh
 | 优先项 | 现状与可复核依据 | 最小修复 / 验收目标 |
 |---|---|---|
 | **已修复验收：安全补齐开发配置** | [infra-init-env.py](../scripts/infra-init-env.py) 初始版本仅用 `O_EXCL`，任意已存在 `.env` 都直接退出；先写模型变量的学习者无法补齐 Compose 必需的四个数据库密码。无需读取任何真实秘密即可用独立临时文件复现 | 显式补缺模式，只生成缺失项，不覆盖既有值；处理空值、重复键、符号链接和权限，保持输出脱敏；隔离临时目录测试新建、幂等、保留、拒绝路径。不能建议用户删除已有凭据来消除错误。现已实现 `--fill-missing`，58 项隔离测试及 `9f892c67` CI 通过；原生 Windows 已有文件补齐仍明确拒绝 |
-| **已修复、待真实验收：精确宕机实验** | [compose.fault-test.yaml](../compose.fault-test.yaml) 初始租约为 3 秒，但 `run_agent` 强制留 15 秒，因此到不了正常 `after_mongo_save`；纯代码复现立即 `AgentBudgetError`。`LAB_TEST_TASK_ID` 虽被传入，`faults.py` 未使用，暂停没有目标任务隔离 | 将真实 task_id 贯穿并匹配 hook；采用足够执行预算的租约和受控恢复时序，处理 marker 生命周期；现已改为 30 秒租约、task/run 双重过滤、私有 marker、kill 前后持久状态检查及无 hook 恢复；四个 SIGKILL 点分别在真实 Docker 中留下证据后，才能升级为已验收实验 |
+| **已修复验收：精确宕机实验** | [compose.fault-test.yaml](../compose.fault-test.yaml) 初始租约为 3 秒，但 `run_agent` 强制留 15 秒，因此到不了正常 `after_mongo_save`；纯代码复现立即 `AgentBudgetError`。`LAB_TEST_TASK_ID` 虽被传入，`faults.py` 未使用，暂停没有目标任务隔离 | 将真实 task_id 贯穿并匹配 hook；采用足够执行预算的租约和受控恢复时序，处理 marker 生命周期；现已改为 30 秒租约、task/run 双重过滤、私有 marker、kill 前后持久状态检查及无 hook 恢复；四个 SIGKILL 点现已在上述 CI 留下真实证据及无 hook 恢复结论 |
 | **随后：让 Worker 可观测性覆盖实际工作** | `worker.py` heartbeat 只随 consumer poll 更新；executor/relay 异常虽记录日志，主心跳仍可新鲜。`app.py` metrics 只有 HTTP 请求计数与时延 | 先定义独立的循环存活/最近成功/积压语义和脱敏指标，不能把“没任务”当故障；补 executor/relay 失效与空闲正常的测试，再考虑告警。不要在依赖短暂中断时无差别重启全部组件 |
 
 学习验收的最低标准是：能指出代码入口、权威记录、一个正常例子、一个故障交接，以及测试没有证明什么。先保证这些主功能清楚、可复现，再增加细粒度评测或外围系统。

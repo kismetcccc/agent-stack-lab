@@ -2,6 +2,37 @@
 
 本记录对应[开发任务清单](DEVELOPMENT_PLAN.md)，只记录已经发生的检查，不用计划或代码文件代替运行证据。
 
+## 当前结论：学习型 v1 已验收（2026-10-22）
+
+19 项必需任务已完成；正式项目许可证等待所有者确认，可选真实模型全栈仍未验收。当前被测、已发布源码为 `102491d29238c6349311f24643511041ed2af7f2`，对应 [CI 39731470818](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818)，checks / compose-integration / frontend-browser 三个 job 全部成功。此后的收口提交只更新 Markdown，不把文档提交伪称重新执行过代码测试。
+
+| 验收项 | 实际结果 | 证据位置 |
+|---|---|---|
+| 后端/API/采集器离线回归 | 409 通过 | unit-evidence / unit.xml |
+| 真实四存储 pytest 集成 | 13 通过：11 正常/契约/Agent + 2 恢复 | compose-real-integration-evidence / integration.xml、recovery.xml |
+| 真实 MySQL 停库与恢复 | 1 个脚本场景，5/5 阶段 | mysql-outage.xml 与步骤日志 |
+| 精确 SIGKILL | 发布确认后、Inbox 提交后、claim 后、Mongo 保存后，4/4 场景通过 | crash-windows.xml/json；每个场景都有边界、kill 后持久状态和恢复检查 |
+| 清理与健康 | 无 hook 的 Worker 恢复通过；六个常驻服务健康；最终 CI 专用卷清理成功 | cleanup_verified=true、services.txt 与 CI 日志 |
+| 可执行 HTTP 示例 | 注册/登录、CSRF、幂等、异步查询、结果/工具步骤、退出后 401 通过 | Execute documented standard-library HTTP main-function smoke 步骤 |
+| 私密构建上下文保护 | 两个 Docker job 都实际验证 55 个私有合成路径被排除、11 个公开源路径保留 | Verify private files are excluded from Docker build contexts 步骤 |
+| 前端 | 30 单元 + 30 桌面/手机浏览器通过；类型检查与构建通过 | frontend-browser 日志及 browser.xml |
+| 冻结 Judge 采集 | 30 条完整；质量未评分、provider 未运行 | judge-sanitized-evidence；不增加精细 AI 评测门槛 |
+
+全部 JUnit 的 failures / errors / skipped 为 0。四个宕机场景与 MySQL 场景不是额外 pytest 用例，HTTP/构建检查按脚本步骤单独报告，不把不同层级数字简单混加。
+
+四份下载归档的 SHA-256 已与 GitHub 对应；检查未发现私密状态文件或所检查的敏感模式。这是限定范围核对，不是全历史绝对无秘密证明。实际用户配置没有上传或修改，默认 CI 无真实模型凭据。
+
+| GitHub 归档 | SHA-256 |
+|---|---|
+| unit-evidence | `aa1e3999609b2825d620877a197e17f50a670ce3f16a8b77ef0baf2e31a57cb2` |
+| frontend-browser-evidence | `e101012406a355615910b779ee2c145241105c8847f3f204d45736c1ccd2078c` |
+| compose-real-integration-evidence | `0511496fb3d1c0339765d1728015e28735eb55c9bb07b87cc95e2974feadf895` |
+| judge-sanitized-evidence | `60c29105fd2d1aeeafa9665a36ca71475b43864d5e8bb5a1296d17fc7090f520` |
+
+文档检查：32 篇 Markdown 的相对文件/标题链接通过；运维文档 24 个 Bash 代码块只做语法检查。备份恢复步骤、手工 curl 逐行执行、Kubernetes、生产加固和完整 live Agent 不在已实跑声明中。项目 LICENSE 仍未添加；上游资料使用外链与原创摘要，不整篇搬运。完整传递依赖许可兼容性及漏洞审计未宣称完成。
+
+后面的迭代记录保留当时基线，供追溯，不将历史的“待验证”误读为当前终态。
+
 ## 迭代 1：后端功能审计与学习文档（2026-10-22）
 
 - 计划先发布：`d4417229db468286682538ba02597ec33951c253`。
@@ -59,15 +90,15 @@
 - 已核对归档摘要、五阶段 XML、实际停库日志与健康恢复记录；原 Redis/Kafka/Mongo/Worker 故障仍通过。脚本先恢复数据服务再恢复 Worker，保留卷；仅 CI 最后的专用清理删除了该次 runner 的临时卷。
 
 
-## 迭代 2B：精确恢复、HTTP 示例与交付保护（已实现，真实 CI 待验收）
+## 迭代 2B：精确恢复、HTTP 示例与交付保护（已验收）
 
 本轮没有扩大 Agent 的工具权限或增加基础设施；代码改动集中在测试开关、可执行示例和构建上下文保护。默认执行仍为 deterministic。
 
 | 项目 | 已完成的实现 / 离线证据 | 真实验收边界 |
 |---|---|---|
-| TEST-02 | 30 秒故障租约；task/run 双重过滤和私有 marker；发布、Inbox、claim、Mongo 四窗口；SIGKILL 前后持久状态核对、退出码 137、真实 lease 回收、恢复无 hook；66 项离线回归 | 新 CI 运行四个脚本场景，生成 crash-windows.xml/json；不计作新增四个 pytest 用例，运行结果尚待验收 |
-| TEST-03 / DOC-01 | 标准库 HTTP 脚本：readyz 模式门禁→注册/退出/登录→CSRF 轮换→幂等提交→任务结果/事件/尝试/工具步骤→退出/401；83 项离线回归 | 新 CI 独立运行 scripts/test-http-smoke.py；离线替身不能证明真实 HTTP 闭环 |
-| BUG-004 / FIX-01 | 原 .dockerignore 未完整隔离根/嵌套秘密目录和数据库文件；补过滤及 55 个私有、11 个公开的纯合成路径夹具；32 项离线回归 | 每个 Docker 应用构建前先做真实 FROM scratch/COPY/export 检查，失败则不继续真实上下文构建；尚待 CI，不声称发生过实际泄漏 |
+| TEST-02 | 30 秒故障租约；task/run 双重过滤和私有 marker；发布、Inbox、claim、Mongo 四窗口；SIGKILL 前后持久状态核对、退出码 137、真实 lease 回收、恢复无 hook；66 项离线回归 | 新 CI 运行四个脚本场景，生成 crash-windows.xml/json；不计作新增四个 pytest 用例，四场景实跑通过，cleanup_verified=true |
+| TEST-03 / DOC-01 | 标准库 HTTP 脚本：readyz 模式门禁→注册/退出/登录→CSRF 轮换→幂等提交→任务结果/事件/尝试/工具步骤→退出/401；83 项离线回归 | 新 CI 独立运行 scripts/test-http-smoke.py 并通过；不是用离线替身充当真实 HTTP 闭环 |
+| BUG-004 / FIX-01 | 原 .dockerignore 未完整隔离根/嵌套秘密目录和数据库文件；补过滤及 55 个私有、11 个公开的纯合成路径夹具；32 项离线回归 | 每个 Docker 应用构建前先做真实 FROM scratch/COPY/export 检查，失败则不继续真实上下文构建；两个 Docker job 均实跑通过，不声称发生过实际泄漏 |
 | 文档与开源准备 | 运维、贡献、安全、第三方来源和发布检查清单已补齐；32 篇 Markdown 的相对文件/标题链接检查通过 | 备份恢复步骤未实跑；完整依赖许可兼容性和漏洞审计未通过认证；项目许可证仍待所有者批准 |
 
 本地合并检查：409 项后端/证据采集器测试通过，Ruff 通过，两个故障 Bash 脚本语法通过，13 项真实集成测试可收集。现有 Starlette/httpx 弃用警告仍保留。这里的“本地”指云端代码工作区，不是用户电脑。

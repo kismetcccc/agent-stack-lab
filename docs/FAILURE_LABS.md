@@ -120,7 +120,7 @@ docker compose ps
 
 ## 精确宕机窗口：预先确定暂停点，再验证真实 SIGKILL
 
-本轮已修复旧实验的租约预算冲突和目标任务过滤，增加真实调用链的 task/run 标识、进程身份和过期检查。**新增四窗口脚本当前等待本轮 CI，不能仅凭代码和单元测试称实跑通过。** 最新状态见[开发报告](DEVELOPMENT_REPORT.md)。
+本轮已修复旧实验的租约预算冲突和目标任务过滤，增加真实调用链的 task/run 标识、进程身份和过期检查。**提交 `102491d2` 的 [CI 39731470818](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818) 已真实运行四窗口并全部通过，清理及无 hook 恢复已核对。** 最新状态见[开发报告](DEVELOPMENT_REPORT.md)。
 
 ```bash
 # 独立合成数据栈，先运行标准集成并构建 integration 镜像：
@@ -174,7 +174,7 @@ relay 已收到 Kafka 确认而尚未标记 sent_at，暂停后退出。这里�
 TEST_BASE_URL=http://localhost:8080 python scripts/test-http-smoke.py
 ```
 
-本轮将该命令加入真实 Compose CI，当前等待新提交实跑结果；离线 opener 单元测试不充当 HTTP 集成证据。下面的 curl 是分步学习版，按同一 API 契约核对，不把逐行手工执行未发生的事写成已经完成。
+该命令已在 `102491d2` 的真实 Compose CI 实跑通过；离线 opener 单元测试不充当 HTTP 集成证据。下面的 curl 是分步学习版，按同一 API 契约核对，不把逐行手工执行未发生的事写成已经完成。
 
 ## curl 后端闭环（Bash / WSL2，无需前端）
 

@@ -30,7 +30,7 @@ MySQL 使用 `agentlab` 数据库，账户 `lab`。其余凭据由环境生成�
 
 ## 测试与证据边界
 
-提交 `f36523fa` 的 [CI 39725461902](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902) 已完成真实 Compose 组件、故障恢复与可选 UI 浏览器验证。以下“编写环境未运行容器”不否定独立 CI 的实际证据，也不意味着 Windows 或 Kubernetes 已通过。
+提交 `102491d2` 的 [CI 39731470818](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818) 已完成真实 Compose 组件、故障恢复与可选 UI 浏览器验证。以下“编写环境未运行容器”不否定独立 CI 的实际证据，也不意味着 Windows 或 Kubernetes 已通过。
 
 - 已运行：官方 Docker Compose v2.35.1 CLI 的 `config --quiet`（离线）；YAML与隔离/迁移依赖不变量验证；脚本语法检查。
 - 当前编写环境缺少 Docker daemon，未运行容器；CPU/内存/磁盘占用与启动时间未实测，不给虚构的最低资源承诺。

@@ -57,7 +57,7 @@ docker compose -f compose.yaml -f compose.ui.yaml down
 ### 最小后端检查
 
 ```bash
-uv run --frozen ruff check backend tests/judge
+uv run --frozen ruff check backend tests/judge scripts/infra-init-env.py scripts/test-http-smoke.py scripts/test-build-context.py
 uv run --frozen pytest backend/tests tests/judge/test_capture.py -m 'not integration'
 ```
 

@@ -1,8 +1,8 @@
 # 受限单 Agent：最小实施契约
 
-状态：**代码已实现；真实组件/浏览器验收待完成**。日期：2026-10-22。
+状态：**受限运行时与教学链路已验收；真实LLM未调用、未验收**。日期：2026-10-22。
 
-本契约先于实现提交。UI基线 `382da456` 已通过 [CI 39720266829](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39720266829)，包含真实服务、17项UI单元和18项浏览器测试，桌面与手机截图已复核；实施门槛已满足。此前失败、修复与范围见 [UI验收报告](UI_TEST_REPORT.md)。本轮没有实际provider调用、凭据配置或用户电脑操作；下面的Agent能力仍需独立代码和测试验收。
+本契约先于实现提交。被测代码 `9c4a1908` 的 [CI 39721645077](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39721645077) 全部成功，140后端单元/API、13真实集成、30UI单元、24浏览器测试通过，桌面与手机真实Agent动作截图已复核。完整证据与限制见 [单Agent验收报告](AGENT_TEST_REPORT.md)。以下是实现遵循的边界，不代表真实provider兼容性已验证；没有配置真实凭据或操作用户电脑。
 
 ## 1. 为什么还需要这一层
 
@@ -13,7 +13,7 @@
 用户 -> API -> MySQL task + outbox -> Kafka -> inbox -> Worker领取任务
              MySQL状态/权限/attempt/租约/fence             |
                                                         v
-执行层（本轮计划：一个受限 Agent，不是新服务）
+执行层（本轮实现：一个受限 Agent，不是新服务）
               goal + task_input + 执行预算
                          |
                          v
@@ -114,7 +114,7 @@ live继续要求明确配置的模式、`ALLOW_LIVE_MODEL`、HTTPS provider地�
 
 新增步骤包含基础 `id/task_id/sequence/kind/content/created_at`，以及 `attempt_id/execution_kind/controller_mode`。可选 `tool_name/arguments/result/truncated` 只含有界、可公开给任务所有者的动作和结果。kind为 `tool_call/tool_result/final`；不保存完整provider消息历史或隐藏推理。稳定步骤ID由attempt_id和sequence组成。
 
-计划新增 `GET /api/v1/tasks/{id}/agent-steps`，在读取任何缓存/文档前先SQL校验所有权。返回：
+已实现 `GET /api/v1/tasks/{id}/agent-steps`，在读取任何缓存/文档前先SQL校验所有权。返回：
 
 ```text
 {items, availability, execution_kind, controller_mode}
@@ -123,7 +123,7 @@ availability = committed | not_committed | legacy
 
 - 尚无成功提交的结果：items为空，availability=not_committed，两个模式字段为null。明确不能据此断言“没有调用工具”。
 - 已提交的新Agent结果：只从MySQL已提交result_id读取，返回其steps，availability=committed。
-- 旧文档缺少新增元数据：返回items为空，availability=legacy；结果接口读取时补充 `execution_kind=legacy_single_call`、`controller_mode=legacy_deterministic_echo` 或 `legacy_live_single_call`（依据旧model_mode）。不要改写不可变旧文档，也不要把旧summary包装成新Agent动作。
+- 旧文档两个新增元数据字段均缺失：返回items为空，availability=legacy；结果接口读取时补充 `execution_kind=legacy_single_call`、`controller_mode=legacy_deterministic_echo` 或 `legacy_live_single_call`（依据旧model_mode）。不要改写不可变旧文档，也不要把旧summary包装成新Agent动作。新增元数据存在但无效或缺一字段时返回安全503，不假装是legacy。
 - 已有成功引用但Mongo不可读：沿用503依赖不可用，不能伪装为空。
 - 非所有者404、未登录401，规则与其他任务读接口一致。
 
@@ -138,7 +138,7 @@ availability = committed | not_committed | legacy
 5. UI最小适配：区分“后台生命周期”与“Agent工具动作”；标注脚本测试/真实模型；真实空态、失败、依赖不可用与legacy提示。桌面/移动浏览器分别检查，不显示假百分比或假实时步骤。
 6. 真实provider验收单独标为等待用户配置/授权；transport mock、脚本Agent和真实四组件集成均不能替代它。
 
-仅在相应证据实际产生后更新“已实现未验收/已验收/阻塞”。本契约本身不宣称上述测试已运行。
+仅在相应证据实际产生后更新“已实现未验收/已验收/阻塞”。实际运行范围以上述独立验收报告为准；未运行部分仍保持未验收。
 
 ## 9. 不在范围内
 

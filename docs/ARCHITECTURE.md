@@ -1,6 +1,6 @@
 # 架构：先看一次任务，再看组件
 
-> 当前只验收后端。直接用 curl 访问 API；前端/网关和 Kubernetes 是后续上下文，不是当前必经路径。
+> 当前已实现可靠后端、可选学习前端/同源网关和受限单Agent运行时，本轮真实Compose与浏览器CI已通过，范围见 [单Agent验收报告](AGENT_TEST_REPORT.md)。默认脚本控制器不调用真实LLM；live仍待私密配置和单独验收。Kubernetes及其他新增外围组件继续延期。初学者可先跟随[单任务导读](AGENT_WALKTHROUGH.md)，再展开本页。
 
 ## 先不用任何高级术语
 
@@ -25,7 +25,7 @@
 
 ```mermaid
 sequenceDiagram
-    participant U as curl / HTTP客户端
+    participant U as 浏览器 / curl
     participant A as FastAPI
     participant S as MySQL
     participant M as MongoDB
@@ -39,7 +39,7 @@ sequenceDiagram
     M-->>U: 结果（经 API 返回）
 ```
 
-当前 API 直连，后续 Nginx 可解决同源入口，但不取代 API 登录和资源授权。每次结果/事件查询也要检查 owner；知道 UUID 不是访问权限。
+后端默认可直接访问8080；可选学习界面通过Nginx同源入口8081访问API，不取代API登录和资源授权。图中省略了结果读取时可降级的Redis缓存，实际仍先SQL授权，再查缓存/回源Mongo。每次结果/事件查询也要检查 owner；知道 UUID 不是访问权限。
 
 **异步路径：谁负责把请求变成结果？**
 
@@ -62,7 +62,7 @@ sequenceDiagram
     C->>S: 同一事务写 inbox + ready
     C->>K: 数据库提交后提交 offset
     E->>S: 短事务 claim：租约 + fence
-    E->>E: 事务外执行文本/模型
+    E->>E: 事务外运行单Agent决策/只读工具循环
     E->>M: 保存 attempt 专属结果
     E->>S: 验证 fence/租约后成功提交
 ```
@@ -77,10 +77,11 @@ sequenceDiagram
   worker：relay + consumer + executor + recovery
   migrate：单次 schema 迁移入口
   mysql / kafka / mongo / redis：各自的数据与开发卷
-  后续另学：前端/网关、observability、Kubernetes
+  可选 compose.ui.yaml：浏览器 → Nginx学习界面/同源API入口8081
+  后续另学：完整observability、Kubernetes
 ```
 
-API 与 Worker 是两个运行入口，不是两套重复业务代码。Kubernetes 的 Deployment/Service 不会替你处理消息幂等；它只管理进程和访问入口。
+API 与 Worker 是两个运行入口，不是两套重复业务代码，也不是两个Agent。Worker内部的单控制器负责决策，基础设施负责交付与持久化。Kubernetes 的 Deployment/Service 不会替你处理消息幂等；它只管理进程和访问入口。
 
 ## 2. 谁的记录可信
 
@@ -103,6 +104,8 @@ MySQL 保存“任务是什么状态、属于谁、哪次执行有权提交”�
 | 7 | [domain.py](../backend/domain.py) `TRANSITIONS` / `transition` | 哪些状态转移非法？成功还能被覆盖吗？ |
 | 8 | [adapters.py](../backend/adapters.py) `KafkaBus` / `MongoDocuments` / `Model` / `ProgressCache` | 哪些是真网络，哪些是明确的测试替身？ |
 | 9 | [db.py](../backend/db.py) 与 [migrate.py](../backend/migrate.py) | 唯一约束、索引和初始 schema 在哪里定义？ |
+| 10 | [agent.py](../backend/agent.py) `run_agent` / `ScriptedController.next` | 下一步如何依赖工具观察？为什么脚本分支不等于LLM推理？ |
+| 11 | [agent_tools.py](../backend/agent_tools.py) `execute_tool`；[agent_provider.py](../backend/agent_provider.py) `LiveController.next` / `normalize` | 工具如何限定材料与预算？live响应如何归一化？ |
 
 API入口见 [app.py](../backend/app.py) `create_app`，Worker入口见 [worker.py](../backend/worker.py) `main` / `executor`。两个文件已实际核对。不要把每个内部方法画成独立服务。
 
@@ -118,7 +121,7 @@ Kafka 生产者幂等减少特定发送重试带来的重复，不覆盖 MySQL/M
 
 - relay 首轮约定单实例。API 可无状态扩展，不代表整个 Worker 可以随意增加副本。
 - 结果 ID 属于 attempt；租约恢复后的新 attempt 可能再次调用模型。旧文档复用、孤儿清理尚需单独实现和验收，不能声称已经做到调用恰好一次。
-- `/events` 现在返回MySQL持久化生命周期事件（component/kind/trace_id），不是模型隐藏思维或多工具轨迹；MongoDB内另存结果安全摘要。Redis提供TTL300秒不可变结果cache-aside，仍不是任务账本。
+- `/events` 现在返回MySQL持久化生命周期事件（component/kind/trace_id），不是模型隐藏思维或多工具轨迹；`/agent-steps`读取MongoDB已提交成功结果中的公开工具动作，不是实时流，也不覆盖失败尝试的完整审计。Redis提供TTL300秒不可变结果cache-aside，仍不是任务账本。
 - 迁移目前是显式初始版本入口；后续 schema 演进必须追加真实迁移，不能改 `create_all` 就宣称支持升级/回滚。
 - 有 trace_id 并不等于有完整分布式 tracing；跨 Kafka 的上下文传播、span 导出与查询必须分别验证。
 
@@ -137,7 +140,7 @@ Kafka 生产者幂等减少特定发送重试带来的重复，不覆盖 MySQL/M
 6. [service.py](../backend/service.py) `receive`：验证schema/type；Inbox唯一插入；锁任务；仅pending转ready。这几个写操作在同一事务。
 7. [worker.py](../backend/worker.py) `executor`：独立线程调用recover再execute_once，长模型调用不阻塞主线程poll。首轮还需遵守单Worker和轮询耗时预算，不盲目扩容。
 8. `claim`：锁定ready任务并跳过已被锁住的行；状态转running；递增fence与attempt_count；记录lease_until和Attempt；短事务结束，释放锁。
-9. `execute_once`：写可丢弃Redis进度；查当前attempt结果；调用`Model.run`；先保存MongoDB，再调用finalize。当前模型是文本处理适配器，没有任意shell工具。
+9. `execute_once`：写可丢弃Redis进度；查当前attempt结果；调用`Model.run`；先保存MongoDB，再调用finalize。`Model.run`选择脚本或live控制器，`run_agent`执行有界决策/只读工具循环；默认scripted_test无真实模型推理，没有任意shell、文件或URL工具。
 10. `finalize`：重新锁任务，检查running、fence和有效租约；然后一起写succeeded、result_id及Attempt完成。若检查失败返回false，不允许旧执行器覆盖新结果。
 11. HTTP `results`：身份确认后调用`document`，先从SQL确认所有权与成功引用，再读Redis不可变结果缓存；miss/unavailable/disabled才回源MongoDB，并返回cache_status。缓存命中可直接返回，Mongo回源不可读则503，而不是假造空成功。
 

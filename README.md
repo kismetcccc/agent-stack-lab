@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **已验证**：提交 `382da456` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39720266829) 通过20项后端单元/API、9项真实组件测试、17项前端单元和18项桌面/移动浏览器测试。详见 [UI验收报告](docs/UI_TEST_REPORT.md) 与 [首轮后端报告](docs/TEST_REPORT.md)。四个存储/消息组件均真实运行；模型仍为deterministic，不产生真实模型调用。受限单Agent已按 [先行契约](docs/SINGLE_AGENT.md) 实现，新增真实链路仍待独立验收。Kubernetes继续延期；项目不是生产就绪平台，不应直接暴露公网。
+> **已验证**：提交 `9c4a1908` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39721645077) 通过140项后端单元/API、13项真实组件集成、30项前端单元和24项桌面/手机浏览器测试。详见 [单Agent验收报告](docs/AGENT_TEST_REPORT.md)。四组件、受限单Agent运行时和学习界面已形成完整教学链路；默认是明确标注的脚本测试策略，**没有真实LLM调用或验收**。Kubernetes和公网部署未启用，本项目不是生产就绪平台。
 
 ## 不熟悉这些组件？先看一个小例子
 
@@ -27,7 +27,8 @@
 4. [组件地图](docs/COMPONENTS.md)：为什么用，不用会怎样，以及尚未实现的能力。
 5. [故障实验](docs/FAILURE_LABS.md)：用故障检验设计，而不是只看正常截图。
 6. [API 契约](docs/API_CONTRACT.md)：前后端接口的唯一详细定义。
-7. [ADR](docs/adr/001-modular-monolith.md)：记录重要选择和代价。
+7. [单Agent逐步导读](docs/AGENT_WALKTHROUGH.md)：从提交文本到工具观察、结果提交与显示。
+8. [ADR](docs/adr/001-modular-monolith.md)：记录重要选择和代价。
 
 ## 当前聚焦：用可选界面理解后端
 
@@ -48,7 +49,7 @@ curl / HTTP客户端 → API → MySQL（任务状态的账本）
                                         ↓
                   MySQL Inbox / ready ← Worker consumer
                             ↓
-                  Worker executor → 文本/模型适配器 → MongoDB 结果
+                  Worker executor → 单Agent控制器/只读工具循环 → MongoDB 结果
                             ↓ 验证租约与fence后提交
                        MySQL succeeded
 ```
@@ -86,7 +87,7 @@ docker compose down
 |---|---|
 | `LAB_MODE=production` | 选择真实 MySQL/Kafka/MongoDB 等适配器；名字不代表生产级质量 |
 | `LAB_MODE=test/demo` | 测试/演示替身，不能作为真实基础设施集成证据 |
-| `MODEL_MODE=deterministic` | 确定性文本处理，不产生模型调用费用 |
+| `MODEL_MODE=deterministic` | 脚本测试控制器与受限工具循环，不是真实模型推理，不产生模型调用费用 |
 | `MODEL_MODE=live` | 需额外显式启用及模型配置；未经配置不自动调用 |
 
 因此“真实四组件集成＋确定性模型”是有效的基础设施测试，但不是“真实模型调用已经验收”。用户后续提供模型 API 时，应通过私密环境配置设置，不要提交到公共仓库；具体开关以 `backend/config.py` 和后续模型接入说明为准。
@@ -95,6 +96,6 @@ docker compose down
 
 首轮交付包含接口、会话/CSRF、任务幂等、状态机、事务 Outbox/Inbox、租约重试和四组件适配器；前端另有独立构建和浏览器验收，部署扩展本轮继续暂停。**代码存在、静态检查通过、真实集成通过是三个不同层级**，最终验收报告需给出所测 commit 和检查结果。
 
-当前重点限制：单 relay/worker 起步；认证没有邮件验证、找回、MFA；模型仅做受限文本处理；尚无完整工具规划、RAG、对象存储、搜索或持久化定时调度；日志/指标/trace 分别验收；没有高可用和灾备承诺。不要将开发模式 `production` 字样理解为安全认证。
+当前重点限制：单 relay/worker 起步；认证没有邮件验证、找回、MFA；单Agent只开放三个纯只读文本工具，真实模型尚未验收；没有任意操作、长期聊天记忆、多Agent、RAG、对象存储、外部搜索或持久化定时调度；日志/指标/trace 分别验收；没有高可用和灾备承诺。不要将开发模式 `production` 字样理解为安全认证。
 
 本项目不提交密钥、真实个人资料、数据库卷或私有日志。请先阅读 [Agent.md](Agent.md) 再修改代码。

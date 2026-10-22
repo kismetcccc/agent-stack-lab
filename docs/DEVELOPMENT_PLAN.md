@@ -70,11 +70,11 @@
 
 | ID | 优先级 | 任务 | 状态 | 当前证据 / 已知缺口 | 依赖 | 验收标准 | 交付文件 |
 |---|---|---|---|---|---|---|---|
-| FIX-ENV | P1（首个实现） | 安全补齐已存在.env中的缺失开发凭据 | 进行中 | `infra-init-env.py` 使用排他新建，已有.env会拒绝；先填模型变量再初始化数据库的常见流程被阻断，这是易用性缺口，不是已有文件损坏 | 计划已发布、模块审计 | 新增显式 `--fill-missing`；只补缺失或明确空值的必需开发凭据，保留已有非空值及原始秘密字节；重复键、符号链接、含糊部分配置安全拒绝；不打印秘密、不覆盖/轮换已有密码；临时目录单元覆盖成功/拒绝/重跑，零live调用；不执行用户电脑上的生成或启动 | `scripts/infra-init-env.py`、对应脚本单元测试、`docs/CONFIGURATION.md`、`README.md` |
+| FIX-ENV | P1（首个实现） | 安全补齐已存在.env中的缺失开发凭据 | 已实现待验收 | `infra-init-env.py` 使用排他新建，已有.env会拒绝；先填模型变量再初始化数据库的常见流程被阻断，这是易用性缺口，不是已有文件损坏 | 计划已发布、模块审计 | 新增显式 `--fill-missing`；只补缺失或明确空值的必需开发凭据，保留已有非空值及原始秘密字节；重复键、符号链接、含糊部分配置安全拒绝；不打印秘密、不覆盖/轮换已有密码；临时目录单元覆盖成功/拒绝/重跑，零live调用；不执行用户电脑上的生成或启动 | `scripts/infra-init-env.py`、对应脚本单元测试、`docs/CONFIGURATION.md`、`README.md` |
 | FIX-01 | P0 | 修复审计确认的主链路/授权/恢复缺陷 | 已验收 | 已完成本轮源码、契约、文档与既有测试证据核对；见当前报告。 未发现额外主链路阻断项；初始化与可选故障实验缺口分别由 FIX-ENV / TEST-02 跟踪，不代表没有任何潜在缺陷。 | 全部 MOD-* | 每个缺陷有复现→最小修复→回归→文档；无未处理的数据丢失、越权、假成功、无限重试或秘密泄漏阻断项；未发现缺陷则记录审计范围与证据，不空改代码 | 受影响 `backend/`、对应测试、`docs/TEST_REPORT.md` 或当前报告、本表缺陷登记 |
-| TEST-01 | P1 | 补齐模块级正常/失败矩阵与 MySQL 故障实测 | 进行中 | 现有真实13项集成及Redis/Kafka/Mongo停机通过；缺少明确MySQL停机/恢复验收 | 全部 MOD-*；涉及修复须 FIX-01 | 真实停MySQL时API可诊断503、任务不假成功、缓存不绕权；恢复后已持久化工作可继续；保留并回归现有所有关键组件故障；记录清理/恢复结果 | `tests/integration/`、`scripts/test-integration.sh`、`docs/TEST_PLAN.md`、`docs/FAILURE_LABS.md`、当前报告 |
+| TEST-01 | P1 | 补齐模块级正常/失败矩阵与 MySQL 故障实测 | 已实现待验收 | 现有真实13项集成及Redis/Kafka/Mongo停机通过；缺少明确MySQL停机/恢复验收 | 全部 MOD-*；涉及修复须 FIX-01 | 真实停MySQL时API可诊断503、任务不假成功、缓存不绕权；恢复后已持久化工作可继续；保留并回归现有所有关键组件故障；记录清理/恢复结果 | `tests/integration/`、`scripts/test-integration.sh`、`docs/TEST_PLAN.md`、`docs/FAILURE_LABS.md`、当前报告 |
 | TEST-02 | P1 | 修复可选精确宕机实验，使其配置与运行时一致 | 待开始 | 审计复现：fault overlay租约3秒小于Agent预留15秒，导致预算立即失败、到不了after_mongo_save；`LAB_TEST_TASK_ID`传入但hook未读取；标准13项集成没有运行本脚本 | MOD-WORKER；FIX-ENV后执行 | 修复租约预算与目标task过滤；补marker/目标选择/正常关闭hook等 focused测试；明确4窗口真实实验仍需隔离Docker。环境允许时再执行发布后、Inbox后、claim后、Mongo后SIGKILL及恢复，成功前始终标“真实实验未验收”；不把标准恢复或单元测试说成精确窗口通过 | `compose.fault-test.yaml`、`backend/faults.py`及调用点、`scripts/test-crash-windows.sh`、对应测试、`docs/FAILURE_LABS.md`、当前报告 |
-| TEST-03 | P1 | 默认CI与接口示例的可复现验收 | 待开始 | 默认CI已有真实Compose及可选UI独立job；已有30条Judge采集不需扩展 | FIX-01、TEST-01、TEST-02、DOC-01 | 冻结依赖、lint、单元、真实集成、适用UI回归通过；HTTP示例在真实栈执行；CI没有模型key、不发live请求；保留基础功能断言，细粒度Judge不成为新增门槛 | `.github/workflows/ci.yml`（有必要才改）、相关脚本/测试、`docs/TEST_PLAN.md`、当前报告 |
+| TEST-03 | P1 | 默认CI与接口示例的可复现验收 | 进行中 | 默认CI已有真实Compose及可选UI独立job；已有30条Judge采集不需扩展 | FIX-01、TEST-01、TEST-02、DOC-01 | 冻结依赖、lint、单元、真实集成、适用UI回归通过；HTTP示例在真实栈执行；CI没有模型key、不发live请求；保留基础功能断言，细粒度Judge不成为新增门槛 | `.github/workflows/ci.yml`（有必要才改）、相关脚本/测试、`docs/TEST_PLAN.md`、当前报告 |
 
 `FIX-01` 子缺陷使用 `BUG-001`、`BUG-002` 等稳定编号登记：`复现条件 / 影响 / 级别 / 修复提交 / 回归测试 / 状态`。P0/P1必须在本轮关闭；纯可选增强移入延期清单并说明理由。不能通过把已确认主功能缺陷改叫“延期”来通过验收。
 

@@ -70,6 +70,8 @@ curl -fsS http://localhost:8080/healthz
 curl -fsS http://localhost:8080/readyz
 ```
 
+如果 `.env` 已有模型配置、但数据库从未初始化，可在受支持的 Linux 本地文件系统使用显式 `--fill-missing` 补空项。先读 [配置与初始化说明](docs/CONFIGURATION.md)：原生 Windows 已有文件补齐暂不支持，已有数据卷不得用随机新密码替代丢失凭据。
+
 API 文档：`http://localhost:8080/docs`。默认8080直接访问API，不是前端页面。注册与提交任务见[curl实验](docs/FAILURE_LABS.md)。数据库不对主机公开端口，没有默认帐号。初始化只生成私有开发凭据，不包含真实模型key。
 
 ```bash

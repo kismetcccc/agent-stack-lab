@@ -43,6 +43,8 @@ bash scripts/test-integration.sh
 | 相同Kafka事件重投 | Inbox去重，状态不回退 | 成功任务重新ready |
 | B访问A的任务 | 详情/events/results均拒绝 | 凭UUID读取别人结果 |
 | 缺失CSRF的写操作 | 拒绝 | 会话cookie自动构成完整写授权 |
+| 停MySQL | `/healthz`仍200，`/readyz`为503；已登录的提交/列表/详情/结果/工具步骤均503 | 伪造202接单，或用Redis缓存绕过SQL会话/所有权检查 |
+| 恢复MySQL，再恢复Worker | 原任务、结果引用、幂等键与所有权保留；原pending/outbox继续完成 | 重启后丢任务、需要重置数据库，或陌生帐号读到缓存结果 |
 | 停Redis | 任务仍可成功 | 因进度缓存丢失而丢任务 |
 | 停Kafka | 提交后的任务pending，outbox保留 | 请求表面成功而任务永远失踪 |
 | 恢复Kafka | 补发并最终完成 | 需要人工改数据库才能继续 |
@@ -50,6 +52,71 @@ bash scripts/test-integration.sh
 | 停/重建Worker | 已提交工作保留，恢复可执行 | 全部工作仅存在进程内存 |
 
 Kafka停机时依赖readiness可能变为失败，但单纯ready标记不等同容器停止。实验应观察真实网关行为，不能假设探针失败自动拒绝所有新请求。
+
+## MySQL真实停机与恢复：权威账本不能由缓存替代
+
+**当前证据状态：新增探针与离线辅助函数测试已实现，真实Docker停库实验待对应提交的CI验收。** 缺少Docker的云端不能运行本实验。基线的13项真实集成测试和Redis/Kafka/MongoDB/Worker故障证据不能代替这里新增的MySQL停机证据；最新执行结果以[当前任务清单](DEVELOPMENT_PLAN.md)和CI报告为准。
+
+入口仍是 `bash scripts/test-integration.sh`，探针实现见 [outage_probe.py](../tests/integration/outage_probe.py)。新增实验不改生产逻辑、不重启API、不删除数据库或卷，也不调用真实模型。它先从真实 `/readyz` 验证 `production` 适配器与 `deterministic` 模型；`production` 在这里不代表已达到生产安全标准。
+
+### 五个阶段及可检查的证据
+
+| 阶段/命令 | 实际动作和必须成立的断言 |
+|---|---|
+| `mysql-prepare` | 创建两个一次性合成帐号A/B；A的基线任务成功，SQL提交结果引用；结果读取明确出现Redis `hit`；B不能读A的任一任务子资源 |
+| 停Worker → `mysql-enqueue` | A提交第二个任务得到真实202；直接查询MySQL确认 `pending`、零attempt、无result_id、唯一未发outbox；记住原task/outbox ID |
+| 停MySQL → `mysql-unavailable` | 实际等待 `/readyz` 返回503且mysql为down、mongo/kafka仍up；`/healthz`仍200；已存在会话的创建、列表、待执行任务详情、成功任务结果/工具步骤返回503 `database_unavailable`，不是客户端超时伪装成503。分别用A/B请求缓存结果，并在前后直接确认Redis key仍存在，排除“缓存已经过期所以看似没有越权”的假通过 |
+| 启MySQL → `mysql-restored` | 有界轮询真实 `/readyz` 到200；此时Worker仍停。原pending与未发outbox不变，基线成功状态/attempt数/result_id及结果摘要不变；停库时503的创建没有写入任务；重发原幂等键仍是同一个pending任务；A可读、B的详情/events/attempts/results/agent-steps均404且列表为空 |
+| 启Worker → `mysql-complete` | 有界等待原pending任务成功；原outbox的sent_at与对应inbox均存在，SQL结果引用和可读Mongo结果/最终步骤成立；先前成功任务没有重新执行；再次验证所有权和readiness |
+
+探针使用45秒单次HTTP超时，容纳停容器后DNS/SQL连接失败可能持续约20秒的情况；readiness恢复轮询最多180秒、停库观测最多120秒、任务成功轮询最多180秒。超时是失败，不制造HTTP响应或补写成功状态；不靠固定等待几秒猜测MySQL是否启动。这里验证的是**先停Worker、已接受pending工作跨MySQL重启后可继续**，不是运行中的执行器突然断库或精确宕机窗口验收。
+
+### 单独复现实验（仅独立、已启动的合成数据core）
+
+通常直接运行完整脚本即可；以下只用于逐阶段学习。执行时不可并行运行另一份集成/宕机脚本，它们共用私有状态文件和同一个Worker。先在项目根目录启动core并构建API镜像；以下不初始化或覆盖现有 `.env`。
+
+```bash
+(
+  set -euo pipefail
+  DC=(docker compose -f compose.yaml -f compose.test.yaml)
+  probe() { "${DC[@]}" run --rm --no-deps --entrypoint python integration /tests/integration/outage_probe.py "$1"; }
+  cleanup_mysql_lab() {
+    rc=$?
+    rm -f test-results/outage-state.json
+    # 先恢复实际依赖健康，再恢复Worker；不删除卷。
+    if docker compose up -d --no-deps --wait --wait-timeout 180 mysql redis mongo kafka; then
+      docker compose up -d --no-deps --force-recreate --wait --wait-timeout 180 worker || rc=1
+    else
+      echo '依赖恢复失败；检查 docker compose ps 后再启动Worker' >&2
+      rc=1
+    fi
+    exit "$rc"
+  }
+  trap cleanup_mysql_lab EXIT
+  mkdir -p test-results
+  chmod 777 test-results # 仅此隔离实验目录，允许非root测试容器写报告
+  "${DC[@]}" build integration
+  probe mysql-prepare
+  docker compose stop worker
+  probe mysql-enqueue
+  docker compose stop mysql
+  probe mysql-unavailable
+  docker compose start mysql
+  probe mysql-restored
+  docker compose start worker
+  probe mysql-complete
+)
+docker compose ps
+```
+
+正常或失败退出都会尝试依次恢复MySQL/Redis/MongoDB/Kafka和Worker，并核验健康；恢复失败会使脚本非零退出，不把 `|| true` 当成功。终端被强制杀死或runner中止时trap不保证执行，须检查服务状态并按同样顺序恢复。本实验不执行 `down --volumes`、删库、重置消费组或清缓存。CI最后销毁独立runner的临时卷属于隔离环境清理，不是业务恢复步骤。
+
+### 证据计数与隐私
+
+- 原有 `integration.xml`、`recovery.xml` 仍是**合计13项pytest真实集成测试**，没有把新增脚本断言塞进该数量。
+- `mysql-outage.xml` 另记**1个真实Compose编排场景、5个阶段**，标明“NOT a pytest test”；全部阶段成功才算通过。中间状态记录为未完成/跳过，失败则记录失败类型和已通过阶段。CI日志同时打印每阶段 `PASS`；只看命令文本或未运行时的文件不算实测证据。
+- [test_mysql_outage_probe.py](../backend/tests/test_mysql_outage_probe.py) 是离线**单元测试**：用 `httpx.MockTransport` 验证探针拒绝假成功、错误状态/模式、超时冒充503、顺序错误及敏感错误输出；用隔离命令替身检查shell成功/失败路径和恢复顺序。它们不连接MySQL、不启动Docker，也不能替代容器故障验收。
+- 会话、CSRF、合成幂等键仅放在 `test-results/outage-state.json`（0600；拒绝符号链接）；成功或退出清理时删除。该文件不得上传附件，现有CI排除规则继续保留。可公开的JUnit只含静态阶段名、测试类型与成功/失败信息，不记录cookie、key、连接串、原始响应或原始驱动异常。
 
 ## 精确宕机窗口：需额外故障注入，不夸大现有脚本
 
@@ -147,6 +214,6 @@ curl -fsS -b "$TMP_LAB/cookies" -H "X-CSRF-Token: $CSRF" \
   -X POST "$BASE/api/v1/auth/logout"
 ```
 
-接着用自动化故障脚本完成停止Redis、Kafka、MongoDB和Worker的实验。先观察每个阶段，再看 `service.py` 中对应事务；不要在上面的成功链路中随意加入停库命令导致剩余清理和恢复被跳过。
+接着用自动化故障脚本完成停止MySQL、Redis、Kafka、MongoDB和Worker的实验。先观察每个阶段，再看 `service.py` 中对应事务；不要在上面的成功链路中随意加入停库命令导致剩余清理和恢复被跳过。
 
 若重复执行要使用新的合成帐号；若调用`/auth/me`轮换CSRF后再写入，应使用其返回的新token，不能继续使用旧变量。生产密钥不应照此以命令行header展示；这里仅是独立本地教学会话。

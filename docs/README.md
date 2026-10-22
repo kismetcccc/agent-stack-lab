@@ -19,6 +19,7 @@
 ## 按任务查找
 
 - 改后端之前：[Agent.md](../Agent.md)、[API 契约](API_CONTRACT.md)、[架构决策 ADR](adr/001-modular-monolith.md)。
+- 配置与凭据：[配置说明](CONFIGURATION.md)。默认不启用真实模型，已有数据卷不能靠随机补密码修复。
 - 运行后端：[Compose 环境](../infra/README.md)、[故障实验](FAILURE_LABS.md)。
 - 打开可选前端：[学习界面指南](UI_GUIDE.md)。界面显示的是后端证据，不是另一套任务状态。
 - 理解模型边界：[单 Agent 契约](SINGLE_AGENT.md)。默认脚本模式不是语言理解；真实模型连通性不等于完整 Agent 链路验收。

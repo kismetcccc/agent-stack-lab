@@ -12,7 +12,7 @@ bash scripts/test-integration.sh
 docker compose down
 ```
 
-初始化脚本用密码学随机数生成 URI-safe 密码，`.env` 权限0600，已存在时拒绝覆盖。
+初始化脚本用密码学随机数生成 URI-safe 密码，默认遇到已有 `.env` 拒绝覆盖。Linux 本地文件系统支持显式 `--fill-missing`，只补缺失/明确空值并保留其他内容；原生 Windows 仅保留排他新建，不能把 POSIX `0600` 当作 NTFS ACL 保证。平台、已有卷与并发限制见 [配置说明](../docs/CONFIGURATION.md)。
 MySQL/MongoDB/Redis 有认证；数据库与 Kafka 不发布宿主端口。
 Kafka 为单节点 KRaft 开发实例，网络内明文无认证；不是生产安全或高可用配置。
 API 仅绑定 `127.0.0.1:8080`。没有公开部署或云资源购买；默认 Compose 不调用真实模型。独立 provider 连通性检查不属于 Compose live 验收。

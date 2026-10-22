@@ -24,7 +24,7 @@ jobs:
       - run: uv sync --frozen
       - name: Backend lint and unit tests (no infrastructure mocks counted as integration)
         run: |
-          uv run ruff check backend tests/judge
+          uv run ruff check backend tests/judge scripts/infra-init-env.py
           uv run pytest backend/tests tests/judge/test_capture.py -m 'not integration' --junitxml=artifacts/unit.xml
       - name: Validate manifests without connecting to a daemon
         run: |

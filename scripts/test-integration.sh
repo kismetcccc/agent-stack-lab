@@ -7,9 +7,22 @@ mkdir -p test-results
 chmod 777 test-results # non-root ephemeral test container writes JUnit here
 DC=(docker compose -f compose.yaml -f compose.test.yaml)
 cleanup() {
+  local status=$?
   rm -f test-results/outage-state.json
-  docker compose start redis mongo kafka >/dev/null || true
-  docker compose up -d --no-deps --force-recreate worker >/dev/null || true
+  # Restore stores and wait for their actual health before replacing Worker.
+  # Never remove volumes: this trap also runs on a failed MySQL assertion.
+  if docker compose up -d --no-deps --wait --wait-timeout 180 mysql redis mongo kafka >/dev/null; then
+    if docker compose up -d --no-deps --force-recreate --wait --wait-timeout 180 worker >/dev/null; then
+      printf '%s\n' 'PASS: MySQL/Redis/Mongo/Kafka and Worker restored healthy; volumes retained'
+    else
+      echo 'FAIL: Worker restoration failed; inspect docker compose ps' >&2
+      status=1
+    fi
+  else
+    echo 'FAIL: dependency restoration failed; inspect docker compose ps before restarting Worker' >&2
+    status=1
+  fi
+  exit "$status"
 }
 trap cleanup EXIT
 "${DC[@]}" build integration
@@ -19,6 +32,18 @@ probe() { "${DC[@]}" run --rm --no-deps --entrypoint python integration /tests/i
 docker compose stop worker
 "${DC[@]}" run --rm --no-deps integration -q /tests/integration/test_recovery.py --junitxml=/reports/recovery.xml
 docker compose start worker
+# SQL is authoritative even when an already-committed result is cached in Redis.
+# Stop Worker before enqueue to observe durable pending+outbox across SQL restart,
+# rather than racing a fast deterministic executor. No API restart or DB reset.
+probe mysql-prepare
+docker compose stop worker
+probe mysql-enqueue
+docker compose stop mysql
+probe mysql-unavailable
+docker compose start mysql
+probe mysql-restored # bounded readiness wait, original pending/outbox and ownership
+docker compose start worker
+probe mysql-complete # original outbox -> inbox -> committed result after Worker resumes
 # Cache is not task authority.
 docker compose stop redis
 probe submit
@@ -50,4 +75,4 @@ probe pending
 docker compose up -d --no-deps --force-recreate worker
 probe complete
 python scripts/test-log-redaction.py
-printf '%s\n' 'PASS: real-store chain, duplicate HTTP/Kafka, ownership, CSRF, Redis/Kafka/Mongo outages, worker restart'
+printf '%s\n' 'PASS: real-store chain, duplicate HTTP/Kafka, ownership, CSRF, MySQL/Redis/Kafka/Mongo outages, worker restart'

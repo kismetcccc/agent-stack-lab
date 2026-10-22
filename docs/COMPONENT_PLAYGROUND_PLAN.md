@@ -1,6 +1,6 @@
 # 组件操作台：有限迭代计划与实施契约
 
-更新：2026-10-22。状态：**计划已发布，实施与验证进行中；尚未完整验收或更新本机**。本文件是新一轮 `PLAY-01..07` 的计划，不重开、不改写已完成的[学习型 v1 计划](DEVELOPMENT_PLAN.md)。协调者先发布本计划，再实施；每项状态只能由对应提交的实际证据更新。
+更新：2026-10-22。状态：**PLAY-01..07 均已验收；云端与本机有限迭代已收口**。本文件是新一轮 `PLAY-01..07` 的计划，不重开、不改写已完成的[学习型 v1 计划](DEVELOPMENT_PLAN.md)。维护者先发布本计划，再实施；每项状态只能由对应提交的实际证据更新。
 
 ## 1. 这一轮交付什么
 
@@ -21,21 +21,21 @@
 
 不增加 raw SQL、任意 Redis 命令/Lua、Mongo 查询语法、Kafka topic/group/offset 管理控制台；不加批量清库、Kafka 重放、broker 消息删除、全局重置、账号配额、通用平台层、Kubernetes、第三方服务、多 Agent、模型评测或 live 模型调用。保留 loopback 绑定，不改账号/数据库/模型秘密，不新增 `LICENSE`，不运行 `npm audit`。
 
-## 2. 已检查的基线与接入点
+## 2. 计划发布时已检查的基线与接入点
 
-基线为 `b76947dba96978b0cd30991350bb834ab49f48d4`（来源代码父提交 `102491d2`）。协调者已确认该基线 409 项离线测试及真实 CI 为绿；这是继承证据，不是本计划已重跑了测试。历史报告保留原被测提交。
+基线为 `b76947dba96978b0cd30991350bb834ab49f48d4`（来源代码父提交 `102491d2`）。维护者已确认该基线 409 项离线测试及真实 CI 为绿；这是继承证据，不是本计划已重跑了测试。历史报告保留原被测提交。
 
 | 已检查的源码 | 本轮决定 |
 |---|---|
 | `backend/app.py`：统一错误、64KiB 实际流上限、Auth、`/readyz` | 追加 `/api/v1/lab`，复用认证/错误边界；不得改成匿名管理接口 |
-| `backend/migrate.py`：目前只有 `create_all` 加 v1 标记 | 改成真正、可重复且可恢复的显式 v1→v2 迁移；不能把扩大后的 metadata `create_all` 称作升级 |
+| `backend/migrate.py`：计划起点只有 `create_all` 加 v1 标记 | 改成真正、可重复且可恢复的显式 v1→v2 迁移；不能把扩大后的 metadata `create_all` 称作升级 |
 | `backend/db.py`：账号、任务、结果引用、outbox/inbox 等现存表 | 新建两张独立 lab 表；不改旧数据及所有权 |
 | `backend/adapters.py`：Mongo `agent_lab.results`；Redis 可降级结果缓存；Kafka publish 绑定 task_id | lab 使用独立适配器方法/命名空间；不要复用会吞错的缓存写入，也不伪造 task_id 发送 lab 消息 |
 | `backend/worker.py`：现有 relay/executor 线程及任务 consumer | 仅增加固定教学 topic 的独立 consumer loop；不新增服务或凭据，不干扰任务 consumer/group |
 | `frontend/src/App.tsx`、`Explorer.tsx`、`api.ts` | 复用登录/CSRF/请求取消；新增直接操作页，旧拓扑作为可选说明 |
 | `compose.yaml`、`compose.ui.yaml`、CI、真实 integration/e2e | 继续后端 8080、可选同源 UI 8081；新增迁移/组件/浏览器真实验收，旧回归不删 |
 
-云端当前 checkout 没有 `.git`、没有 Docker daemon。这里可以编写、运行可用的离线检查，但不能宣称已完成真实 Compose 或浏览器全栈验收；由有 Docker 的真实 CI 执行，协调者核验准确提交后再更新用户本机。
+计划发布时的云端编写环境没有 `.git`、没有 Docker daemon，因此当时不声称真实 Compose 或浏览器通过。后续精确提交 `ec1126d27ee63bb401d29bb8705a11603a61e01c` 已由真实 GitHub Actions 验证；状态和失败修复过程见[本轮验收记录](COMPONENT_PLAYGROUND_REPORT.md)。编写环境与 CI 环境的证据分开，本机更新仍须独立验收。
 
 ## 3. 最小 API 通用契约（冻结）
 
@@ -187,15 +187,23 @@ KafkaMessage：
 
 状态只用：待开始 / 进行中 / 已实现待验收 / 已验收 / 阻塞。文档完成不等于运行验收。
 
-| ID | 工作 | 初始状态 | 验收产物与门槛 |
+| ID | 工作 | 当前状态 | 验收产物与门槛 |
 |---|---|---|---|
 | PLAY-01 | 冻结本计划、Agent.md 当前优先级、协调后端/前端/测试契约 | 已验收 | 计划先发布提交 `0f306a777655fffa1077703c7321f004a6a14921`，远端已核对；后端/UI/测试使用同一冻结契约 |
-| PLAY-02 | 后端四组件操作、独立存储、固定 Kafka consumer 和 v1→v2 | 已实现待验收 | 真实适配器实现；有界输入；无 task/model prerequisite；旧授权/缓存/队列不变；离线针对性测试通过 |
-| PLAY-03 | 直接操作台 UI | 已实现待验收 | 四组件完整操作、确认/取消、错误/空态、刷新/导航/重复请求保护；类型检查、单元、构建通过 |
-| PLAY-04 | 真正 Compose 与故障/升级验证 | 进行中 | 下方真实集成矩阵全部通过；旧真实链路/故障窗口不退化；只在隔离合成环境停止依赖 |
-| PLAY-05 | 真实浏览器桌面/手机验证 | 进行中 | 下方浏览器矩阵通过，实际页面截图复核；mock 网络测试只作为补充 |
-| PLAY-06 | 更新接口/教程/运维/报告及精确提交 CI | 进行中 | OpenAPI、API_CONTRACT、UI_GUIDE、README/文档索引及报告一致；最新远端提交完整必需 CI 绿；记录真实/替身/未运行，检查秘密/链接 |
-| PLAY-07 | 协调者更新已有本机栈并验收 | 待开始 | 云端 CI 之后，使用独立忽略的 `.env.compose.local` 和已有卷，显式迁移、构建/重启、8081 浏览器 smoke；旧数据保留，真实四操作成功；不改模型 key |
+| PLAY-02 | 后端四组件操作、独立存储、固定 Kafka consumer 和 v1→v2 | 已验收 | 真实适配器实现；有界输入；无 task/model prerequisite；旧授权/缓存/队列不变；595 项后端离线测试及真实组件/迁移验收通过，精确提交见下方 |
+| PLAY-03 | 直接操作台 UI | 已验收 | 四组件完整操作、确认/取消、错误/空态、刷新/导航/重复请求保护；类型检查、58 项单元、构建及实际浏览器通过 |
+| PLAY-04 | 真正 Compose 与故障/升级验证 | 已验收 | 20 项真实 pytest、升级/保留/重启/依赖故障及四个 SIGKILL 窗口通过；旧真实链路/故障窗口不退化；只在隔离合成环境停止依赖 |
+| PLAY-05 | 真实浏览器桌面/手机验证 | 已验收 | 38 项实际浏览器通过；修正后的桌面/手机 Mongo/Kafka 截图完成人工视觉复核，几何检查通过；mock 网络测试只作为补充 |
+| PLAY-06 | 更新接口/教程/运维/报告及精确提交 CI | 已验收 | OpenAPI、API_CONTRACT、UI_GUIDE、README/文档索引及报告一致；`ec1126d2` / CI `39743833797` 三个必需 job 全绿；记录真实/替身/未运行，检查秘密/链接 |
+| PLAY-07 | 已有本机栈更新与验收 | 已验收 | Windows + Docker 快进至 `ec1126d2`；显式迁移标记 `[1,2]`；原配置/卷/旧数据保留，7 个服务健康；真实 Edge 四组件操作通过，无付费模型调用 |
+
+### 云端验收快照（2026-10-22）
+
+代码 [`ec1126d27ee63bb401d29bb8705a11603a61e01c`](https://github.com/kismetcccc/agent-stack-lab/commit/ec1126d27ee63bb401d29bb8705a11603a61e01c) 的 [CI 39743833797](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39743833797) 三个 job 全部成功：595 项后端离线、58 项前端单元、20 项真实组件 pytest、38 项实际浏览器通过；真实升级/旧数据保留/故障恢复/重启及四个精确 SIGKILL 窗口已核验。计数分层，不把替身或脚本步骤重复加进真实 pytest。
+
+首轮 `c3d65081` / [CI 39741761253](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39741761253) 的 Mongo 字符串转义断言错误和视觉复核发现的 CSS 名称冲突没有隐去；修正为 JSON.stringify 断言、`lab-workbench-grid` 命名空间及几何检查后，对 `ec1126d2` 全量重跑并实际查看桌面/手机截图。详细证据、已知限制与归档口径见[验收记录](COMPONENT_PLAYGROUND_REPORT.md)。
+
+2026-10-22 08:51 UTC，本机 Windows + Docker 也完成验收：同一精确代码提交，显式迁移标记 `[1,2]`，原配置/卷/旧数据保留，7 个服务健康；Edge 实际 MySQL/Mongo CRUD、Redis 10 秒真实到期、Kafka 生产确认与消费者回执均通过。`PLAY-07` 据本机独立结果标为已验收，不以云端绿灯代替。本段状态更新不改下面冻结的接口/测试门槛；公开范围与详情见[验收记录](COMPONENT_PLAYGROUND_REPORT.md)。
 
 ### 必需测试矩阵
 
@@ -214,13 +222,13 @@ KafkaMessage：
 
 ### 本机更新边界
 
-本计划作者/云端代码子任务不操作用户电脑。协调者在云端完整 CI 后，检查用户电脑现有 checkout、独立 `.env.compose.local`、Compose project/卷及服务状态；不把云端 `.env` 拷过去，不重新生成已有密码，不修改模型 key。确认目标提交、沿用已有 project/volumes，显式运行 v2 迁移并保留输出，再更新 API/Worker/UI。普通更新不使用 `down --volumes` 或重建空库。回读旧账号/任务及新 lab 数据，最终在 `http://localhost:8081` 做真实 smoke；任何权限/环境阻塞具体说明，不能把「云端 CI 绿」说成「本机已更新」。
+本计划作者/云端代码子任务不操作用户电脑。维护者在云端完整 CI 后，检查用户电脑现有 checkout、独立 `.env.compose.local`、Compose project/卷及服务状态；不把云端 `.env` 拷过去，不重新生成已有密码，不修改模型 key。确认目标提交、沿用已有 project/volumes，显式运行 v2 迁移并保留输出，再更新 API/Worker/UI。普通更新不使用 `down --volumes` 或重建空库。回读旧账号/任务及新 lab 数据，最终在 `http://localhost:8081` 做真实 smoke；任何权限/环境阻塞具体说明，不能把「云端 CI 绿」说成「本机已更新」。
 
 ## 8. 收口条件与证据记录
 
 `PLAY-01..07` 满足各自门槛后结束这一轮；不为延长迭代添加组件、模型、租户平台、Kafka admin 或重放实验。若本机阶段确实被环境/权限阻塞，明确报告云端已完成、本机未完成与所需动作，不冒充全部交付；无授权的动作保持等待，不绕过限制。许可证、live 全栈、Kubernetes 等沿用旧计划独立状态，不是这一轮前置条件。
 
-每项报告记录：起止/远端 commit、改动文件、实际命令、执行环境、真实依赖或替身、通过/失败/未运行、测试数量、脱敏证据路径、发现的问题及修复、服务恢复/数据保留情况。本计划撰写时只有源码/契约检查，没有新增功能运行证据。
+每项报告记录：起止/远端 commit、改动文件、实际命令、执行环境、真实依赖或替身、通过/失败/未运行、测试数量、脱敏证据路径、发现的问题及修复、服务恢复/数据保留情况。计划首发时只有源码/契约检查；现有云端与本机运行结果已更新至上述精确提交及[验收记录](COMPONENT_PLAYGROUND_REPORT.md)，本轮已按门槛收口。
 
 ## 9. 核对依据
 
@@ -230,3 +238,4 @@ KafkaMessage：
 - MySQL DDL 隐式提交，不能用外层事务承诺多 DDL 自动回滚；迁移需要可恢复步骤及最后版本标记。[MySQL 8.4 implicit commit](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html)
 - PTTL 是毫秒，负值区分不存在与无到期时间。[Redis PTTL](https://redis.io/docs/latest/commands/pttl/)
 - Kafka 手工同步 commit 与消息 offset 有明确语义；本轮在实际 receipt 持久化后提交，保留至少一次消费和确认不确定性的边界。[Confluent Python consumer](https://docs.confluent.io/kafka-clients/python/current/overview.html) / [Client API](https://docs.confluent.io/platform/current/clients/confluent-kafka-python/html/index.html)
+

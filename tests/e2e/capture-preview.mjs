@@ -9,7 +9,7 @@ try {
   for (const [name,viewport] of [['desktop',{width:1440,height:1000}],['mobile',{width:390,height:844}]]) {
     const context = await browser.newContext({viewport, deviceScaleFactor:1});
     const page = await context.newPage();
-    await page.goto(base, {waitUntil:'networkidle'});
+    await page.goto(`${base.replace(/\/$/, '')}/#overview`, {waitUntil:'networkidle'});
     await page.getByRole('main').waitFor();
     await page.evaluate(()=>document.fonts.ready);
     await page.evaluate(()=>window.scrollTo(0,0));
@@ -21,7 +21,7 @@ try {
     await page.waitForTimeout(100);
     await page.screenshot({path:`${destination}/${name}-mysql-detail.png`,fullPage:true});
     await page.getByRole('tab',{name:/查询与结果/}).click();
-    await page.getByRole('link',{name:'Redis',exact:true}).click();
+    await page.locator('.explorer-main').getByRole('button',{name:/Redis/}).first().click();
     await page.evaluate(()=>window.scrollTo(0,0));
     await page.waitForTimeout(100);
     await page.screenshot({path:`${destination}/${name}-query-redis.png`,fullPage:true});

@@ -1,5 +1,5 @@
 import {test, expect, type Page} from '@playwright/test';
-import {noPageOverflow, password, requireRealBackend, screenshot, submitTopic} from './helpers';
+import {noPageOverflow, password, requireRealBackend, screenshot, submitTopic, openTaskComposer, closeTaskDetail} from './helpers';
 
 async function register(page: Page) {
   await page.goto('/#lab');
@@ -28,6 +28,7 @@ test.describe('real four-store browser chain', () => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     const username = await register(page);
+    await closeTaskDetail(page);
     await page.getByRole('button', {name:'退出登录'}).click();
     await login(page, username);
     const prompt = '解释 MySQL、Kafka、MongoDB 与 Redis 在可靠任务链路中的职责与边界。';
@@ -42,7 +43,7 @@ test.describe('real four-store browser chain', () => {
     expect(detailResponse.status()).toBe(200);
     const detail = await detailResponse.json();
     expect(detail.attempt_count).toBe(1);
-    await expect(taskRow.locator('small')).toContainText(`尝试 ${detail.attempt_count}`);
+    await expect(taskRow.locator('.visually-hidden')).toContainText(`尝试 ${detail.attempt_count}`);
     await expect(page.getByTestId('task-attempts').locator('summary')).toHaveText(`执行尝试 · ${detail.attempt_count}`);
     await page.getByTestId("task-attempts").locator("summary").click();
     await expect(page.getByTestId('cache-status')).toContainText(/hit|miss/);
@@ -61,6 +62,7 @@ test.describe('real four-store browser chain', () => {
     await expect(page).not.toHaveURL(/task=/);
     await page.goBack();
     await expect(page.getByTestId('report-content')).toContainText(prompt);
+    await closeTaskDetail(page);
     await page.getByRole('button', {name:'退出登录'}).click();
     await expect(page.getByRole('button', {name:'登录', exact:true})).toBeVisible();
     await expect(page.getByTestId('report-content')).toHaveCount(0);
@@ -77,6 +79,7 @@ test.describe('real four-store browser chain', () => {
   test('synchronous repeated submits create exactly one real task', async ({page}) => {
     await register(page);
     const prompt = '同一个提交事件为什么需要幂等键？';
+    await openTaskComposer(page);
     await page.getByLabel('研究主题 / 任务要求').fill(prompt);
     let submissions = 0;
     page.on('request', r => {if(r.method()==='POST' && r.url().endsWith('/api/v1/tasks')) submissions++;});
@@ -126,6 +129,7 @@ test.describe('real four-store browser chain', () => {
         await route.continue({headers:{...route.request().headers(),'x-csrf-token':'intentionally-invalid'}});
       } else {await route.continue();}
     });
+    await openTaskComposer(page);
     await page.getByLabel('研究主题 / 任务要求').fill('演示 CSRF 失败后安全重试。');
     const rejected = page.waitForResponse(r => r.url().endsWith('/api/v1/tasks') && r.status()===403);
     await page.getByRole('button', {name:'提交报告任务'}).click();
@@ -169,6 +173,7 @@ test.describe('real four-store browser chain', () => {
     page.on('response', response => {
       if(response.request().method()==='POST' && response.url().endsWith('/api/v1/auth/logout')) logoutStatuses.push(response.status());
     });
+    await closeTaskDetail(page);
     await page.getByRole('button',{name:'退出登录'}).click();
     await expect(page.getByRole('button',{name:'登录',exact:true})).toBeVisible();
     expect(logoutStatuses).toEqual([403,204]);
@@ -178,7 +183,15 @@ test.describe('real four-store browser chain', () => {
 
   test('logout in flight locks submission and clears private draft', async ({page}) => {
     const username = await register(page);
+    await openTaskComposer(page);
     await page.getByLabel('研究主题 / 任务要求').fill('退出过程中不应创建的私密草稿');
+    // Modal chrome is inert. First exercise the dirty-draft guard through real UI,
+    // then log out; identity-expiry with an open draft has a separate real-HTTP case.
+    await page.getByRole('dialog').getByRole('button', {name:'关闭抽屉', exact:true}).click();
+    await page.getByRole('alertdialog').getByRole('button', {name:'继续编辑', exact:true}).click();
+    await expect(page.getByLabel('研究主题 / 任务要求')).toHaveValue('退出过程中不应创建的私密草稿');
+    await page.getByRole('dialog').getByRole('button', {name:'关闭抽屉', exact:true}).click();
+    await page.getByRole('alertdialog').getByRole('button', {name:'放弃草稿', exact:true}).click();
     let release!: () => void;
     const gate = new Promise<void>(resolve => {release=resolve;});
     let started!: () => void;
@@ -191,9 +204,11 @@ test.describe('real four-store browser chain', () => {
     });
     let taskPosts=0;
     page.on('request',r => {if(r.method()==='POST' && r.url().endsWith('/api/v1/tasks')) taskPosts++;});
+    await closeTaskDetail(page);
     await page.getByRole('button',{name:'退出登录'}).click();
     await observed;
     try {
+      await expect(page.getByRole('button',{name:'新建任务',exact:true})).toBeDisabled();
       const submit = page.getByRole('button',{name:'提交报告任务',exact:true});
       if(await submit.count()) await expect(submit).toBeDisabled();
       const textarea = page.getByLabel('研究主题 / 任务要求');
@@ -206,6 +221,7 @@ test.describe('real four-store browser chain', () => {
     await expect(page.getByRole('button',{name:'登录',exact:true})).toBeVisible();
     await page.unroute('**/api/v1/auth/logout');
     await login(page,username);
+    await openTaskComposer(page);
     await expect(page.getByLabel('研究主题 / 任务要求')).toHaveValue('');
     const list = await page.request.get('/api/v1/tasks');
     expect((await list.json()).total).toBe(0);

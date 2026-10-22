@@ -90,7 +90,10 @@ describe("direct component shell", () => {
       />,
     );
     expect(screen.getByText(/不按帐号隔离/)).toBeInTheDocument();
-    expect(screen.getByText(/使用离线 \/ 测试替身/)).toBeInTheDocument();
+    expect(screen.getByText("测试替身")).toHaveAttribute(
+      "title",
+      expect.stringContaining("不代表真实组件集成"),
+    );
     expect(screen.getByText("existing login")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "创建记录" }),
@@ -117,13 +120,14 @@ describe("direct component shell", () => {
     );
     vi.stubGlobal("fetch", fetcher);
     render(<App />);
-    await screen.findByRole("button", { name: "创建记录" });
-    expect(
-      screen.getByText("后端：真实组件适配器（production）"),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/组件实验完全不使用模型/)).toHaveTextContent(
-      "确定性测试控制器（不调用模型）",
+    await screen.findByRole("button", { name: "新建记录" });
+    expect(screen.getByText("真实适配器")).toHaveAttribute(
+      "title",
+      expect.stringContaining("不代表组件当前正常"),
     );
+    expect(
+      screen.queryByText(/组件实验完全不使用模型/),
+    ).not.toBeInTheDocument();
     expect(fetcher.mock.calls.some(([path]) => path.includes("/tasks"))).toBe(
       false,
     );
@@ -173,6 +177,7 @@ describe("persisted records and documents", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<RecordsLab kind="mysql" {...props} />);
     await screen.findByText(/还没有记录/);
+    fireEvent.click(screen.getByRole("button", { name: "新建记录" }));
     setInput("名称", "submitted draft");
     setInput("内容", "input value");
     const button = screen.getByRole("button", { name: "创建记录" });
@@ -185,10 +190,14 @@ describe("persisted records and documents", () => {
     rows = [record];
     await act(async () => finish(json(record, 201)));
     expect(
+      await screen.findByRole("dialog", { name: "记录详情" }),
+    ).toHaveTextContent("从数据库读取");
+    expect(screen.queryByLabelText("名称")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "关闭抽屉" }));
+    expect(
       await screen.findByRole("button", { name: "编辑 教学记录" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("table")).toHaveTextContent("从数据库读取");
-    expect(screen.getByLabelText("名称")).toHaveValue("");
   });
   it("reloads a selected record before editing and cancels without writing", async () => {
     const fetcher = vi.fn((path: string) =>
@@ -209,7 +218,7 @@ describe("persisted records and documents", () => {
       expect(screen.getByLabelText("内容")).toHaveValue("fresh read"),
     );
     fireEvent.click(screen.getByRole("button", { name: "取消编辑" }));
-    expect(screen.getByLabelText("内容")).toHaveValue("");
+    expect(screen.queryByLabelText("内容")).not.toBeInTheDocument();
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it("requires deletion confirmation, supports Escape, and sends explicit confirmation only once", async () => {
@@ -304,6 +313,7 @@ describe("persisted records and documents", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<RecordsLab kind="mongo" {...props} />);
     await screen.findByText(/还没有文档/);
+    fireEvent.click(screen.getByRole("button", { name: "新建文档" }));
     setInput("JSON 文档", '{"unfinished":');
     fireEvent.click(screen.getByRole("button", { name: "保存文档" }));
     expect(screen.getByRole("alert")).toHaveTextContent("JSON 格式不正确");
@@ -319,11 +329,18 @@ describe("persisted records and documents", () => {
       created_at: record.created_at,
       updated_at: record.updated_at,
     };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([doc]))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(json(path.includes("?") ? page([doc]) : doc)),
+      ),
+    );
     render(<RecordsLab kind="mongo" {...props} />);
-    await screen.findByRole("button", { name: `编辑文档 ${id}` });
+    await screen.findByRole("button", { name: `替换文档 ${id}` });
+    expect(screen.queryByText(/<img src=x/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `查看文档 ${id}` }));
+    expect(await screen.findAllByText(/<img src=x/)).not.toHaveLength(0);
     expect(document.querySelector("img")).toBeNull();
-    expect(screen.getByText(/<img src=x/)).toBeInTheDocument();
   });
 });
 
@@ -347,6 +364,7 @@ describe("Redis observation semantics", () => {
     );
     vi.stubGlobal("fetch", fetcher);
     render(<RedisLab {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "写入键值" }));
     setInput("键名", "lesson");
     setInput("值", "draft");
     fireEvent.click(screen.getByRole("button", { name: "写入并设置 TTL" }));
@@ -378,7 +396,7 @@ describe("Redis observation semantics", () => {
     );
     vi.stubGlobal("fetch", fetcher);
     render(<RedisLab {...props} />);
-    setInput("键名", "lesson");
+    setInput("查询键名", "lesson");
     fireEvent.click(screen.getByRole("button", { name: "读取键值" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("没有过期时间");
     expect(screen.queryByText(/参考倒计时/)).not.toBeInTheDocument();
@@ -397,7 +415,7 @@ describe("Redis observation semantics", () => {
         ),
     );
     render(<RedisLab {...props} />);
-    setInput("键名", "lesson");
+    setInput("查询键名", "lesson");
     fireEvent.click(screen.getByRole("button", { name: "读取键值" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Redis 暂不可用",
@@ -486,15 +504,18 @@ describe("Kafka independent observations", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<KafkaLab {...props} />);
     await screen.findByText(/还没有消息记录/);
+    fireEvent.click(screen.getByRole("button", { name: "发送消息" }));
     setInput("消息键", "lesson");
     setInput("消息内容", "hello");
-    const send = screen.getByRole("button", { name: "发送消息" });
+    const send = screen.getByRole("button", { name: "确认发送" });
     fireEvent.click(send);
     fireEvent.click(send);
     await screen.findByText(/发送结果未确认。请按上方 ID/);
     expect(location.hash).toContain(sentId);
     expect(screen.getByTestId("kafka-attempt-id")).toHaveTextContent(sentId);
-    expect(send).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "确认发送" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "手动刷新" }));
     await screen.findByTestId("kafka-detail");
     expect(
@@ -518,7 +539,8 @@ describe("Kafka independent observations", () => {
       location.hash = "#kafka";
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
-    expect(signal?.aborted).toBe(true);
+    // Native hash events are coalesced before publishing the accepted route.
+    await waitFor(() => expect(signal?.aborted).toBe(true));
     expect(screen.queryByTestId("kafka-detail")).not.toBeInTheDocument();
   });
 });
@@ -555,7 +577,8 @@ describe("lab CSRF navigation cancellation", () => {
     });
     vi.stubGlobal("fetch", fetcher);
     render(<App />);
-    await screen.findByRole("button", { name: "创建记录" });
+    await screen.findByRole("button", { name: "新建记录" });
+    fireEvent.click(screen.getByRole("button", { name: "新建记录" }));
     setInput("名称", "cancel-before-retry");
     fireEvent.click(screen.getByRole("button", { name: "创建记录" }));
     await waitFor(() => expect(authReads).toBe(2));
@@ -563,7 +586,8 @@ describe("lab CSRF navigation cancellation", () => {
       location.hash = "#redis";
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
-    await screen.findByLabelText("键名");
+    fireEvent.click(await screen.findByRole("button", { name: "仍然离开" }));
+    await screen.findByLabelText("查询键名");
     expect(refreshSignal?.aborted).toBe(true);
     await act(async () =>
       finishRefresh(
@@ -601,10 +625,11 @@ describe("lab CSRF navigation cancellation", () => {
     });
     vi.stubGlobal("fetch", fetcher);
     render(<App />);
-    await screen.findByRole("button", { name: "创建记录" });
+    await screen.findByRole("button", { name: "新建记录" });
+    fireEvent.click(screen.getByRole("button", { name: "新建记录" }));
     setInput("名称", "same-body");
     fireEvent.click(screen.getByRole("button", { name: "创建记录" }));
-    await screen.findByRole("button", { name: "编辑 教学记录" });
+    await screen.findByRole("dialog", { name: "记录详情" });
     const calls = fetcher.mock.calls.filter(
       ([, options]) => options?.method === "POST",
     );
@@ -628,6 +653,7 @@ describe("honest uncertain and bounded states", () => {
     );
     render(<RecordsLab kind="mysql" {...props} />);
     await screen.findByText(/还没有记录/);
+    fireEvent.click(screen.getByRole("button", { name: "新建记录" }));
     setInput("名称", "keep my draft");
     fireEvent.click(screen.getByRole("button", { name: "创建记录" }));
     await screen.findByText(/写入结果可能尚未确认/);
@@ -647,9 +673,7 @@ describe("honest uncertain and bounded states", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(21000);
     });
-    expect(
-      screen.getByText(/尚未观察到，可手动刷新。自动观察已停止/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/自动观察已暂停，可手动刷新/)).toBeInTheDocument();
     expect(screen.getByTestId("kafka-consumer-status")).toHaveTextContent(
       "尚未观察到",
     );

@@ -2,7 +2,7 @@
 import {writeFile} from 'node:fs/promises';
 import {readFileSync} from 'node:fs';
 import {test, expect, type Page} from '@playwright/test';
-import {noPageOverflow, password, requireRealBackend, screenshot} from './helpers';
+import {noPageOverflow, password, requireRealBackend, screenshot, openTaskComposer} from './helpers';
 
 // Reuse frozen inputs without importing their expected outcomes as assertions.
 const frozen = JSON.parse(readFileSync(new URL('../judge/cases.json', import.meta.url), 'utf8'));
@@ -25,6 +25,7 @@ for (const journey of journeys) {
   test(`judge capture only: ${journey.id}`, async ({page, request}, info) => {
     await requireRealBackend(request);
     await register(page);
+    await openTaskComposer(page);
     await page.getByLabel('研究主题 / 任务要求').fill(journey.prompt);
     await page.getByRole('button', {name: '提交报告任务', exact: true}).click();
     await expect(page).toHaveURL(/task=/);

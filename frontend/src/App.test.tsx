@@ -105,9 +105,7 @@ describe("anonymous task workspace", () => {
       ),
     );
     render(<App />);
-    expect(
-      screen.getByRole("heading", { name: "选一个组件，动手试一次。" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "总览" })).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText(/后端：demo/)).toBeInTheDocument(),
     );
@@ -265,6 +263,7 @@ describe("identity and bounded CSRF recovery", () => {
       }),
     );
     render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
     fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
       target: { value: "a task" },
     });
@@ -305,6 +304,7 @@ describe("identity and bounded CSRF recovery", () => {
       }),
     );
     render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
     fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
       target: { value: "a task" },
     });
@@ -348,10 +348,13 @@ describe("identity and bounded CSRF recovery", () => {
       }),
     );
     render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
     fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
       target: { value: "private draft" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "退出登录", hidden: true }),
+    );
     await waitFor(() => expect(logout).toBe(2));
     const submit = screen.getByRole("button", { name: "提交报告任务" });
     expect(submit).toBeDisabled();
@@ -387,11 +390,14 @@ describe("identity and bounded CSRF recovery", () => {
         }),
       );
       render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
       fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
         target: { value: "alice secret draft" },
       });
       fireEvent.click(screen.getByRole("button", { name: "提交报告任务" }));
-      fireEvent.click(screen.getByRole("button", { name: "刷新任务" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "刷新任务", hidden: true }),
+      );
       await screen.findByLabelText("用户名");
       fireEvent.change(screen.getByLabelText("用户名"), {
         target: { value: "bob" },
@@ -400,6 +406,7 @@ describe("identity and bounded CSRF recovery", () => {
         target: { value: "testpassword" },
       });
       fireEvent.click(screen.getByRole("button", { name: "登录" }));
+      fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
       const prompt = await screen.findByLabelText("研究主题 / 任务要求");
       expect(prompt).toHaveValue("");
       fireEvent.change(prompt, { target: { value: "bob draft" } });
@@ -434,6 +441,7 @@ describe("identity and bounded CSRF recovery", () => {
       }),
     );
     render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
     fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
       target: { value: "alice private" },
     });
@@ -467,6 +475,7 @@ it("never attempts CSRF recovery for a resource-permission 403", async () => {
     }),
   );
   render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
   fireEvent.change(await screen.findByLabelText("研究主题 / 任务要求"), {
     target: { value: "task prompt" },
   });
@@ -523,8 +532,208 @@ it("keeps a completed detail snapshot in the list when an older list response ar
   render(<App />);
   await screen.findByTestId("report-content");
   await act(async () => resolveList(json({ items: [base], total: 1 })));
-  const row = screen.getByRole("button", { name: /真实详情优先于旧列表快照/ });
+  const row = screen.getByRole("button", {
+    name: /真实详情优先于旧列表快照/,
+    hidden: true,
+  });
   expect(row).toHaveTextContent("已完成");
   expect(row).toHaveTextContent("尝试 1");
   expect(row).not.toHaveTextContent("等待分发");
+});
+
+describe("console task interruptions", () => {
+  const user = {
+    user: { id: "console-user", username: "student" },
+    csrf_token: "csrf",
+  };
+  const task = {
+    id: "linked",
+    prompt: "深链教学任务",
+    status: "pending",
+    attempt_count: 0,
+    created_at: "2026-10-22T09:00:00Z",
+    updated_at: "2026-10-22T09:00:00Z",
+    result_available: false,
+    model_mode: "deterministic",
+    trace_id: "trace",
+    progress: 0,
+    error: null,
+  };
+  const fallback = (path: string) =>
+    path === "/readyz"
+      ? json({
+          mode: "production",
+          model_mode: "deterministic",
+          dependencies: { mysql: "up", mongo: "up", kafka: "up" },
+        })
+      : path.includes("?")
+        ? json({ items: [], total: 0 })
+        : path.endsWith("/events") || path.endsWith("/attempts")
+          ? json({ items: [] })
+          : path.endsWith("/agent-steps")
+            ? json({ availability: "not_committed", items: [] })
+            : json(task);
+  it("keeps a private deep link through login without an inert-login trap", async () => {
+    location.hash = "#lab?task=linked";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(
+          path.endsWith("/auth/me")
+            ? json({}, 401)
+            : path.endsWith("/auth/login")
+              ? json(user)
+              : fallback(path),
+        ),
+      ),
+    );
+    render(<App />);
+    const name = await screen.findByLabelText("用户名");
+    expect(
+      screen.queryByRole("dialog", { name: "任务详情" }),
+    ).not.toBeInTheDocument();
+    fireEvent.change(name, { target: { value: "student" } });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    await screen.findByRole("dialog", { name: "任务详情" });
+    await screen.findByTestId("task-detail");
+    expect(location.hash).toBe("#lab?task=linked");
+  });
+  it("does not recover CSRF or reopen a dismissed pending task submission", async () => {
+    location.hash = "#lab";
+    let me = 0;
+    let posts = 0;
+    let resolveRefresh: (response: Response) => void = () => {};
+    let refreshSignal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string, options?: RequestInit) => {
+        if (path.endsWith("/auth/me")) {
+          me++;
+          if (me === 1) return Promise.resolve(json(user));
+          refreshSignal = options?.signal as AbortSignal;
+          return new Promise<Response>((resolve) => {
+            resolveRefresh = resolve;
+          });
+        }
+        if (path === "/api/v1/tasks" && options?.method === "POST") {
+          posts++;
+          return Promise.resolve(
+            json(
+              { error: { code: "csrf_failed", message: "refresh needed" } },
+              403,
+            ),
+          );
+        }
+        return Promise.resolve(fallback(path));
+      }),
+    );
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "新建任务" }));
+    fireEvent.change(screen.getByLabelText("研究主题 / 任务要求"), {
+      target: { value: "pending teaching task" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "提交报告任务" }));
+    await waitFor(() => expect(me).toBe(2));
+    fireEvent.click(screen.getByRole("button", { name: "关闭抽屉" }));
+    expect(screen.getByText(/不会撤销操作/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "仍然离开" }));
+    expect(refreshSignal?.aborted).toBe(true);
+    await act(async () =>
+      resolveRefresh(json({ ...user, csrf_token: "refreshed" })),
+    );
+    expect(posts).toBe(1);
+    expect(location.hash).toBe("#lab");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+  it("guards task draft navigation and keeps list-first creation on demand", async () => {
+    location.hash = "#lab";
+    const writes = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string, options?: RequestInit) => {
+        if (options?.method === "POST") writes();
+        return Promise.resolve(
+          path.endsWith("/auth/me") ? json(user) : fallback(path),
+        );
+      }),
+    );
+    render(<App />);
+    const newTask = await screen.findByRole("button", { name: "新建任务" });
+    expect(
+      screen.queryByLabelText("研究主题 / 任务要求"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(newTask);
+    fireEvent.change(screen.getByLabelText("研究主题 / 任务要求"), {
+      target: { value: "保留草稿" },
+    });
+    act(() => {
+      location.hash = "#mysql";
+    });
+    await screen.findByRole("alertdialog");
+    await waitFor(() => expect(location.hash).toBe("#lab"));
+    fireEvent.click(screen.getByRole("button", { name: "继续编辑" }));
+    expect(screen.getByLabelText("研究主题 / 任务要求")).toHaveValue(
+      "保留草稿",
+    );
+    act(() => {
+      location.hash = "#mysql";
+    });
+    await screen.findByRole("alertdialog");
+    await waitFor(() => expect(location.hash).toBe("#lab"));
+    fireEvent.click(screen.getByRole("button", { name: "放弃草稿" }));
+    await screen.findByTestId("component-mysql");
+    expect(writes).not.toHaveBeenCalled();
+    expect(screen.queryByDisplayValue("保留草稿")).not.toBeInTheDocument();
+  });
+  it("retains valid 503 evidence and marks it stale only after a later transport failure", async () => {
+    location.hash = "#playground";
+    let ready = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        path === "/readyz"
+          ? ++ready === 1
+            ? Promise.resolve(
+                json(
+                  {
+                    mode: "production",
+                    dependencies: { mysql: "up", mongo: "down", kafka: "up" },
+                  },
+                  503,
+                ),
+              )
+            : Promise.reject(new TypeError("offline"))
+          : Promise.resolve(json({}, 401)),
+      ),
+    );
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("readiness-summary")).toHaveTextContent(
+        "HTTP 503",
+      ),
+    );
+    expect(screen.getByText("未就绪")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "刷新检查" }));
+    await screen.findByText("上次检查，非当前状态");
+    expect(screen.getByText("未就绪")).toBeInTheDocument();
+    expect(screen.getByText(/当前服务状态未知/)).toBeInTheDocument();
+  });
+  it("shows an explicit not-found page rather than unrelated failure experiments", async () => {
+    location.hash = "#not-real";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(path === "/readyz" ? json({}) : json({}, 401)),
+      ),
+    );
+    render(<App />);
+    expect(
+      screen.getByRole("heading", { name: "未找到页面" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("先观察，再动手")).not.toBeInTheDocument();
+    await screen.findByRole("button", { name: "登录帐号" });
+  });
 });

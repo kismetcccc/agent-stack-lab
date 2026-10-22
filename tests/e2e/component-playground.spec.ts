@@ -1,31 +1,15 @@
 /** Real same-origin Compose journeys. No fabricated store responses or progress. */
 import {test, expect, type Page} from '@playwright/test';
-import {noPageOverflow, password, requireRealBackend, screenshot} from './helpers';
+import {noPageOverflow, password, requireRealBackend, screenshot, primaryGeometry, closeDrawer} from './helpers';
 
 const api = '/api/v1/lab';
 const unique = () => `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 
-async function workbenchGeometry(page: Page, component: string) {
+async function resourceGeometry(page: Page, component: string) {
   const panel = page.getByTestId(`component-${component}`);
-  const grid = panel.locator('.lab-workbench-grid');
-  await expect(grid).toBeVisible();
-  const section = (await panel.boundingBox())!;
-  const workspace = (await grid.boundingBox())!;
-  const editor = (await grid.locator('.lab-editor').boundingBox())!;
-  const results = (await grid.locator('.lab-results').boundingBox())!;
-  // Overflow alone misses a legacy grid rule squeezing controls into half a page.
-  expect(Math.abs(workspace.width - section.width), 'workbench fills available component width').toBeLessThanOrEqual(2);
-  expect(Math.abs(editor.x - workspace.x), 'editor starts at workbench left edge').toBeLessThanOrEqual(2);
-  expect(Math.abs(results.x + results.width - workspace.x - workspace.width), 'results reach workbench right edge').toBeLessThanOrEqual(2);
-  if (page.viewportSize()!.width <= 900) {
-    expect(Math.abs(editor.width - workspace.width), 'mobile editor has full width').toBeLessThanOrEqual(2);
-    expect(Math.abs(results.width - workspace.width), 'mobile results have full width').toBeLessThanOrEqual(2);
-    expect(Math.abs(results.x - editor.x), 'mobile panels align').toBeLessThanOrEqual(2);
-    expect(results.y, 'mobile results stack below editor without overlap').toBeGreaterThanOrEqual(editor.y + editor.height);
-  } else {
-    expect(results.x, 'desktop panels use two separate tracks').toBeGreaterThan(editor.x + editor.width);
-    expect(Math.abs(results.y - editor.y), 'desktop panels align at top').toBeLessThanOrEqual(2);
-  }
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(panel.locator('textarea')).toHaveCount(0);
+  await primaryGeometry(page, panel, panel.getByTestId('resource-primary'));
 }
 
 async function register(page: Page, component: string) {
@@ -36,7 +20,7 @@ async function register(page: Page, component: string) {
   await page.getByRole('button', {name: '注册并登录', exact: true}).click();
   await expect(page.getByRole('button', {name: '退出登录'})).toBeVisible();
   await expect(page.getByTestId(`component-${component}`)).toBeVisible();
-  await workbenchGeometry(page, component);
+  await resourceGeometry(page, component);
 }
 
 async function noTaskPrerequisite(page: Page) {
@@ -57,45 +41,51 @@ test.describe('independent personal component playground against real stores', (
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
-    await expect(page.getByRole('heading', {level: 1, name: '选一个组件，动手试一次。'})).toBeVisible();
-    await expect(page.locator('.playground-card')).toHaveCount(4);
+    await expect(page.getByRole('heading', {level: 1, name: '总览'})).toBeVisible();
+    await expect(page.getByRole('table', {name: '本地资源', exact: true})).toBeVisible();
+    await expect(page.locator('.playground-card')).toHaveCount(0);
     await noPageOverflow(page);
     await screenshot(page, info, 'component-home');
     await register(page, 'mysql');
     const panel = page.getByTestId('component-mysql');
     const name = `browser-mysql-${unique()}`;
+    await panel.getByRole('button', {name: '新建记录', exact: true}).click();
     const value = '<img src=x onerror="window.__labXss=1"> MySQL 保存的真实文本';
-    await panel.getByLabel('名称', {exact: true}).fill(name);
-    await panel.getByLabel('内容', {exact: true}).fill(value);
+    await page.getByRole('dialog').getByLabel('名称', {exact: true}).fill(name);
+    await page.getByRole('dialog').getByLabel('内容', {exact: true}).fill(value);
     let creates = 0, deletes = 0;
     page.on('request', request => {
       if (request.method() === 'POST' && new URL(request.url()).pathname === `${api}/mysql/records`) creates++;
       if (request.method() === 'DELETE' && request.url().includes(`${api}/mysql/records/`)) deletes++;
     });
     const createdResponse = responseFor(page, `${api}/mysql/records`, 'POST', 201);
-    await panel.getByLabel('名称', {exact: true}).evaluate(el => {
+    await page.getByRole('dialog').getByLabel('名称', {exact: true}).evaluate(el => {
       const form = el.closest('form')!; form.requestSubmit(); form.requestSubmit();
     });
     const created = await (await createdResponse).json();
     const row = panel.locator('tbody tr').filter({hasText: created.id});
     await expect(row).toContainText(value);
     expect(creates).toBe(1);
+    if (await page.getByRole('dialog').count()) await closeDrawer(page);
     await expect(row.locator('img,script')).toHaveCount(0);
     expect(await page.evaluate(() => (window as any).__labXss)).toBeUndefined();
     await panel.getByRole('button', {name: `编辑 ${name}`, exact: true}).click();
-    await expect(panel.getByLabel('内容', {exact: true})).toHaveValue(value);
-    await panel.getByLabel('内容', {exact: true}).fill('取消编辑不应保存');
-    await panel.getByRole('button', {name: '取消编辑', exact: true}).click();
+    await expect(page.getByRole('dialog').getByLabel('内容', {exact: true})).toHaveValue(value);
+    await page.getByRole('dialog').getByLabel('内容', {exact: true}).fill('取消编辑不应保存');
+    await page.getByRole('dialog').getByRole('button', {name: '关闭抽屉', exact: true}).click();
+    await page.getByRole('alertdialog').getByRole('button', {name: '放弃草稿', exact: true}).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     expect((await (await page.request.get(`${api}/mysql/records/${created.id}`)).json()).value).toBe(value);
     await panel.getByRole('button', {name: `编辑 ${name}`, exact: true}).click();
-    await panel.getByLabel('内容', {exact: true}).fill('真实更新后的 MySQL 内容');
+    await page.getByRole('dialog').getByLabel('内容', {exact: true}).fill('真实更新后的 MySQL 内容');
     expect((await page.request.get('/api/v1/auth/me')).status()).toBe(200); // another tab rotates CSRF
     const updates: number[] = [];
     page.on('response', response => {
       if (response.request().method() === 'PUT' && response.url().endsWith(`${api}/mysql/records/${created.id}`)) updates.push(response.status());
     });
-    await panel.getByRole('button', {name: '保存修改', exact: true}).click();
+    await page.getByRole('dialog').getByRole('button', {name: '保存修改', exact: true}).click();
     await expect(row).toContainText('真实更新后的 MySQL 内容');
+    if (await page.getByRole('dialog').count()) await closeDrawer(page);
     expect(updates).toEqual([403, 200]);
     await page.reload();
     await expect(row).toContainText('真实更新后的 MySQL 内容');
@@ -124,11 +114,12 @@ test.describe('independent personal component playground against real stores', (
     await register(page, 'redis');
     const panel = page.getByTestId('component-redis');
     const key = `browser_${unique()}`;
-    await panel.getByLabel('键名', {exact: true}).fill(key);
-    await panel.getByLabel('值', {exact: true}).fill('Redis 中的真实临时值');
-    await panel.getByLabel('过期时间（秒）', {exact: true}).fill('3');
+    await panel.getByRole('button', {name: '写入键值', exact: true}).click();
+    await page.getByRole('dialog').getByLabel('键名', {exact: true}).fill(key);
+    await page.getByRole('dialog').getByLabel('值', {exact: true}).fill('Redis 中的真实临时值');
+    await page.getByRole('dialog').getByLabel('过期时间（秒）', {exact: true}).fill('3');
     const put = responseFor(page, `${api}/redis/keys/${key}`, 'PUT', 200);
-    await panel.getByRole('button', {name: '写入并设置 TTL', exact: true}).click();
+    await page.getByRole('dialog').getByRole('button', {name: '写入并设置 TTL', exact: true}).click();
     const written = await (await put).json();
     expect(written.exists).toBe(true);
     expect(written.value).toBe('Redis 中的真实临时值');
@@ -148,9 +139,11 @@ test.describe('independent personal component playground against real stores', (
     const missing = await (await expired).json();
     expect(missing).toMatchObject({key, exists: false, value: null, ttl_ms: -2});
     await expect(panel.getByText('服务端确认：键不存在', {exact: true})).toBeVisible();
-    await panel.getByLabel('值', {exact: true}).fill('覆盖为新值');
-    await panel.getByLabel('过期时间（秒）', {exact: true}).fill('60');
-    await panel.getByRole('button', {name: '写入并设置 TTL', exact: true}).click();
+    await panel.getByRole('button', {name: '写入键值', exact: true}).click();
+    await page.getByRole('dialog').getByLabel('键名', {exact: true}).fill(key);
+    await page.getByRole('dialog').getByLabel('值', {exact: true}).fill('覆盖为新值');
+    await page.getByRole('dialog').getByLabel('过期时间（秒）', {exact: true}).fill('60');
+    await page.getByRole('dialog').getByRole('button', {name: '写入并设置 TTL', exact: true}).click();
     await expect(panel.getByText('覆盖为新值', {exact: true})).toBeVisible();
     await panel.getByRole('button', {name: '删除键', exact: true}).click();
     await page.getByRole('alertdialog').getByRole('button', {name: '取消', exact: true}).click();
@@ -172,32 +165,44 @@ test.describe('independent personal component playground against real stores', (
       if (request.method() === 'POST' && new URL(request.url()).pathname === `${api}/mongo/documents`) posts++;
       if (request.method() === 'DELETE' && request.url().includes(`${api}/mongo/documents/`)) deletes++;
     });
-    await panel.getByLabel('JSON 文档', {exact: true}).fill('{not JSON');
-    await panel.getByRole('button', {name: '保存文档', exact: true}).click();
-    await expect(panel.getByRole('alert')).toContainText('JSON 格式不正确');
+    await panel.getByRole('button', {name: '新建文档', exact: true}).click();
+    await page.getByRole('dialog').getByLabel('JSON 文档', {exact: true}).fill('{not JSON');
+    await page.getByRole('dialog').getByRole('button', {name: '保存文档', exact: true}).click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('JSON 格式不正确');
     expect(posts).toBe(0);
     const document = {title: `browser-mongo-${unique()}`, nested: {items: [1, true, null]}, literal: '<img src=x onerror="window.__labXss=2">', long: '无空格的长 JSON 字符串'.repeat(40)};
-    await panel.getByLabel('JSON 文档', {exact: true}).fill(JSON.stringify(document, null, 2));
+    await page.getByRole('dialog').getByLabel('JSON 文档', {exact: true}).fill(JSON.stringify(document, null, 2));
     const post = responseFor(page, `${api}/mongo/documents`, 'POST', 201);
-    await panel.getByRole('button', {name: '保存文档', exact: true}).click();
+    await page.getByRole('dialog').getByRole('button', {name: '保存文档', exact: true}).click();
     const created = await (await post).json();
     expect(created.document).toEqual(document);
-    const item = panel.locator('article.document-item').filter({hasText: created.id});
-    await expect(item).toContainText(JSON.stringify(document.literal));
-    expect(JSON.parse(await item.locator('pre').innerText())).toEqual(document);
+    const item = panel.locator('tbody tr').filter({hasText: created.id});
+    await expect(item).toBeVisible();
+    if (await page.getByRole('dialog').count()) await closeDrawer(page);
+    await expect(item.locator('pre, textarea')).toHaveCount(0);
+    await panel.getByRole('button', {name: `查看文档 ${created.id}`, exact: true}).click();
+    const detail = page.getByRole('dialog', {name: '文档详情', exact: true});
+    await expect(detail).toContainText(JSON.stringify(document.literal));
+    expect(JSON.parse(await detail.locator('pre').first().innerText())).toEqual(document);
     expect(await page.evaluate(() => (window as any).__labXss)).toBeUndefined();
     await expect(item.locator('img,script')).toHaveCount(0);
+    await expect(detail.locator('img,script')).toHaveCount(0);
     await noPageOverflow(page);
     await screenshot(page, info, 'mongo-real-json');
-    await panel.getByRole('button', {name: `编辑文档 ${created.id}`, exact: true}).click();
-    await expect(panel.getByLabel('JSON 文档', {exact: true})).toHaveValue(JSON.stringify(document, null, 2));
+    await closeDrawer(page);
+    await panel.getByRole('button', {name: `替换文档 ${created.id}`, exact: true}).click();
+    await expect(page.getByRole('dialog').getByLabel('JSON 文档', {exact: true})).toHaveValue(JSON.stringify(document, null, 2));
     const changed = {title: document.title, replacement: {count: 42}};
-    await panel.getByLabel('JSON 文档', {exact: true}).fill(JSON.stringify(changed));
-    await panel.getByRole('button', {name: '保存修改', exact: true}).click();
+    await page.getByRole('dialog').getByLabel('JSON 文档', {exact: true}).fill(JSON.stringify(changed));
+    await page.getByRole('dialog').getByRole('button', {name: '保存修改', exact: true}).click();
     await expect(item).toContainText('replacement');
+    if (await page.getByRole('dialog').count()) await closeDrawer(page);
     await page.reload();
     await expect(item).toContainText('replacement');
-    expect(JSON.parse(await item.locator('pre').innerText())).toEqual(changed);
+    await panel.getByRole('button', {name: `查看文档 ${created.id}`, exact: true}).click();
+    expect(JSON.parse(await detail.locator('pre').first().innerText())).toEqual(changed);
+    expect((await (await page.request.get(`${api}/mongo/documents/${created.id}`)).json()).document).toEqual(changed);
+    await closeDrawer(page);
     // Delay a real detail response only; the fixture never invents backend JSON.
     let release!: () => void, seen!: () => void;
     const gate = new Promise<void>(resolve => {release = resolve;});
@@ -207,16 +212,20 @@ test.describe('independent personal component playground against real stores', (
       const actual = await route.fetch(); seen(); await gate;
       try {await route.fulfill({response: actual});} catch { /* old navigation was aborted */ }
     });
-    await panel.getByRole('button', {name: `编辑文档 ${created.id}`, exact: true}).click();
+    await panel.getByRole('button', {name: `替换文档 ${created.id}`, exact: true}).click();
     await observed;
-    await page.getByRole('link', {name: 'Redis', exact: true}).click();
+    // Use browser navigation while the in-flight drawer is modal; do not click inert chrome.
+    await page.evaluate(() => {location.hash = 'redis';});
+    const leaving = page.getByRole('alertdialog', {name: '请求仍在处理中', exact: true});
+    await expect(leaving).toBeVisible();
+    await leaving.getByRole('button', {name: '仍然离开', exact: true}).click();
     await expect(page.getByTestId('component-redis')).toBeVisible();
     release();
     await page.unroute(pattern);
     await expect(page.getByLabel('JSON 文档', {exact: true})).toHaveCount(0);
     await page.goBack();
     await expect(item).toContainText('replacement');
-    await expect(panel.getByLabel('JSON 文档', {exact: true})).toHaveValue('');
+    await expect(page.getByRole('dialog').getByLabel('JSON 文档', {exact: true})).toHaveCount(0);
     await panel.getByRole('button', {name: `删除文档 ${created.id}`, exact: true}).click();
     await page.getByRole('alertdialog').getByRole('button', {name: '取消', exact: true}).click();
     expect(deletes).toBe(0);
@@ -235,14 +244,15 @@ test.describe('independent personal component playground against real stores', (
     await register(page, 'kafka');
     const panel = page.getByTestId('component-kafka');
     const key = `browser_${unique()}`, value = '来自浏览器的真实 Kafka 消息';
-    await panel.getByLabel('消息键', {exact: true}).fill(key);
-    await panel.getByLabel('消息内容', {exact: true}).fill(value);
+    await panel.getByRole('button', {name: '发送消息', exact: true}).click();
+    await page.getByRole('dialog').getByLabel('消息键', {exact: true}).fill(key);
+    await page.getByRole('dialog').getByLabel('消息内容', {exact: true}).fill(value);
     let sends = 0;
     page.on('request', request => {
       if (request.method() === 'POST' && new URL(request.url()).pathname === `${api}/kafka/messages`) sends++;
     });
     const sentResponse = responseFor(page, `${api}/kafka/messages`, 'POST', 202);
-    await panel.getByLabel('消息键', {exact: true}).evaluate(el => {
+    await page.getByRole('dialog').getByLabel('消息键', {exact: true}).evaluate(el => {
       const form = el.closest('form')!; form.requestSubmit(); form.requestSubmit();
     });
     const sent = await (await sentResponse).json();
@@ -256,8 +266,8 @@ test.describe('independent personal component playground against real stores', (
       return received.consumer.status;
     }, {timeout: 45000, intervals: [500, 1000]}).toBe('received');
     expect(received.consumer).toMatchObject({group: 'agent-lab-observer-v1', key, value, partition: sent.producer.partition, offset: sent.producer.offset});
-    await panel.getByRole('button', {name: '手动刷新', exact: true}).click();
-    const detail = panel.getByTestId('kafka-detail');
+    await page.getByRole('dialog').getByRole('button', {name: '手动刷新', exact: true}).click();
+    const detail = page.getByTestId('kafka-detail');
     await expect(detail).toHaveAttribute('data-message-id', sent.id);
     await expect(detail.getByTestId('kafka-producer-status')).toHaveText('已获生产确认');
     await expect(detail.getByTestId('kafka-consumer-status')).toHaveText('已观察到消费者收取');
@@ -265,8 +275,9 @@ test.describe('independent personal component playground against real stores', (
     await noPageOverflow(page);
     await screenshot(page, info, 'kafka-real-ack-and-receipt');
     await page.reload();
-    await expect(panel).toContainText(sent.id);
+    await expect(page.getByTestId('kafka-detail')).toContainText(sent.id);
     await noTaskPrerequisite(page);
+    await closeDrawer(page);
     await page.getByRole('button', {name: '退出登录'}).click();
     await expect(page).toHaveURL(/#playground$/);
     await expect(page.getByTestId('kafka-detail')).toHaveCount(0);

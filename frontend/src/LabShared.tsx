@@ -31,6 +31,7 @@ export function useLabOperation(props: LabProps) {
   callbacks.current = props;
   const mounted = useRef(true),
     lock = useRef(false),
+    generation = useRef(0),
     reads = useRef(new AbortController());
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -50,13 +51,16 @@ export function useLabOperation(props: LabProps) {
     if (lock.current) return;
     lock.current = true;
     const signal = reads.current.signal;
+    const current = generation.current;
     setBusy(true);
     setError("");
     try {
       const value = await operation();
-      if (mounted.current && !signal.aborted) success(value);
+      if (mounted.current && !signal.aborted && generation.current === current)
+        success(value);
     } catch (e) {
-      if (!mounted.current || signal.aborted) return;
+      if (!mounted.current || signal.aborted || generation.current !== current)
+        return;
       if (e instanceof ApiError && e.status === 401)
         callbacks.current.onUnauthorized();
       else {
@@ -64,11 +68,21 @@ export function useLabOperation(props: LabProps) {
         failed?.(e);
       }
     } finally {
-      lock.current = false;
-      if (mounted.current && !signal.aborted) setBusy(false);
+      if (generation.current === current) {
+        lock.current = false;
+        if (mounted.current && !signal.aborted) setBusy(false);
+      }
     }
   }
   return {
+    invalidate: () => {
+      generation.current += 1;
+      reads.current.abort();
+      reads.current = new AbortController();
+      lock.current = false;
+      setBusy(false);
+      setError("");
+    },
     busy,
     error,
     setError,

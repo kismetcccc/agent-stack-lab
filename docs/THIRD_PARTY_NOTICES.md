@@ -94,7 +94,7 @@ Playwright 包许可证不等于所下载 Chromium、编解码器或系统依赖
 | `otel/opentelemetry-collector:0.123.0` | 仅完整基础设施草稿 | Apache-2.0；[v0.123.0 LICENSE](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.123.0/LICENSE) | R；完整镜像 U |
 | `kindest/node:v1.32.2` | Kind 草稿，本轮延期 | Kubernetes 主体 Apache-2.0；[v1.32.2 LICENSE](https://github.com/kubernetes/kubernetes/blob/v1.32.2/LICENSE)，不是整个 Kind 节点统一许可 | R；节点镜像 U |
 
-引用位置：[默认 Compose](../compose.yaml)、[UI overlay](../compose.ui.yaml)、[Dockerfile.api](../Dockerfile.api)、[Dockerfile.frontend](../Dockerfile.frontend)、[完整草稿](../infra/drafts/compose.full.yaml)、[Kind 配置](../infra/k8s/kind.yaml)。`agent-stack-lab-api/tests/gateway:local` 与 `:ci` 是本项目构建标记，不是已发布的第三方镜像或 digest 锁定。
+引用位置：[默认 Compose](../compose.yaml)、[UI overlay](../compose.ui.yaml)、[Dockerfile.api](../Dockerfile.api)、[Dockerfile.frontend](../Dockerfile.frontend)；后续部署范围见 [Kubernetes 说明](../infra/k8s/README.md)（当前无 Kind 或完整基础设施草稿配置）。`agent-stack-lab-api/tests/gateway:local` 与 `:ci` 是本项目构建标记，不是已发布的第三方镜像或 digest 锁定。
 
 特别注意：Redis [官方版本许可表](https://redis.io/legal/licenses/) 区分 7.2 及以前、7.4、8+，不能把旧 BSD 或新版可选 AGPLv3 套到 7.4.2；MongoDB [官方许可说明](https://www.mongodb.com/legal/licensing/community-edition) 区分服务端、驱动和文档，OSI 也明确说明 [SSPL 不是开源许可证](https://opensource.org/blog/the-sspl-is-not-an-open-source-license)。客户端 MIT/Apache-2.0 不能证明服务端采用相同许可。
 

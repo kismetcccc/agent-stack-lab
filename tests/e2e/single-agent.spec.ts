@@ -1,5 +1,5 @@
 import {test, expect, type Page} from '@playwright/test';
-import {noPageOverflow, password, requireRealBackend, screenshot, submitTopic} from './helpers';
+import {noPageOverflow, password, requireRealBackend, screenshot, submitTopic, openTaskComposer, closeTaskDetail} from './helpers';
 
 const demo = '目标：[search:销量] [stats]\n材料：销量 10 20 30';
 async function registerAgentUser(page: Page) {
@@ -60,6 +60,7 @@ test.describe('committed single-Agent actions against real stores', () => {
     await expect(page.getByTestId('cache-status')).toContainText('hit');
     expect((await (await page.request.get(`/api/v1/tasks/${taskId}/agent-steps`)).json())).toEqual(committed);
     await noPageOverflow(page);
+    await closeTaskDetail(page);
     await page.getByRole('button', {name:'退出登录'}).click();
     await expect(page.getByTestId('agent-actions')).toHaveCount(0);
     await expect(page.getByTestId('report-content')).toHaveCount(0);
@@ -69,6 +70,7 @@ test.describe('committed single-Agent actions against real stores', () => {
 
   test('rejected material shows truthful failed-action availability rather than a fabricated trace', async ({page}) => {
     await registerAgentUser(page);
+    await openTaskComposer(page);
     await page.getByLabel('研究主题 / 任务要求').fill('目标：[stats]\n材料：1e6');
     await page.getByRole('button', {name:'提交报告任务', exact:true}).click();
     await expect(page).toHaveURL(/task=/);

@@ -4,9 +4,9 @@
 
 中文后端教学项目：FastAPI / MySQL / Redis / MongoDB / Kafka。**不必先创建 Agent 任务，不需要模型 Key，也不调用真实模型。** 原任务与 Agent、架构说明保留为进阶入口。
 
-> **本轮证据边界**：组件操作台按[冻结计划](docs/COMPONENT_PLAYGROUND_PLAN.md)新增；计划首发提交为 `0f306a777655fffa1077703c7321f004a6a14921`。本页是使用说明，不是新功能验收记录。真实组件、浏览器、最新提交 CI 与用户本机更新须分别核验；**本机更新仍待协调者验收，不表示已部署**。
+> **当前改版**：按[本地控制台计划](docs/CONSOLE_REDESIGN_PLAN.md)重整导航和操作区，前端正在实施，见[本轮验收状态](docs/CONSOLE_REDESIGN_REPORT.md)。保留现有后端与数据；计划不等于新界面已验收。
 >
-> **已验收的历史学习型 v1**：提交 `102491d2` 的 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818) 通过 409 项后端/采集器、13 项真实组件集成、30 项前端单元和 30 项桌面/手机浏览器测试。四个精确宕机窗口、HTTP 示例及构建上下文保护见[该版本报告](docs/DEVELOPMENT_REPORT.md)。这些数字不代表新增操作台已经验收。独立模型连通性检查不等于完整 live Agent 验收；本项目不是生产就绪平台。
+> **已完成组件操作台**：代码 `ec1126d2` 的完整 CI 与本机升级已验收，595 项后端、58 项前端单元、20 项真实集成和 38 项浏览器测试见[历史报告](docs/COMPONENT_PLAYGROUND_REPORT.md)。这些结果不替代本轮界面回归。独立模型连通性不等于完整 live Agent 验收，本项目不是生产就绪平台。
 
 ## 先选一个组件，动手试一次
 

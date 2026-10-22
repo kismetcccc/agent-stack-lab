@@ -2,7 +2,7 @@
 
 先在组件操作台保存一条记录、观察一个键过期、修改一份 JSON、收取一条 Kafka 消息。**无需先创建任务或理解整条 Agent 链路。** 这是个人本地共享教学工具，不是生产平台。
 
-本轮实施状态见 [组件操作台验收记录](COMPONENT_PLAYGROUND_REPORT.md)，旧版结果与新功能验收分开记录。
+本轮实施状态见[控制台改版计划](CONSOLE_REDESIGN_PLAN.md)与[改版验收记录](CONSOLE_REDESIGN_REPORT.md)。已完成的[组件操作台验收](COMPONENT_PLAYGROUND_REPORT.md)保留为历史，不代替新版 UI 测试。
 
 ## 建议阅读顺序
 
@@ -19,11 +19,11 @@
 
 ## 按任务查找
 
-- **本轮范围与状态**：[冻结计划](COMPONENT_PLAYGROUND_PLAN.md)，首发 `0f306a777655fffa1077703c7321f004a6a14921`。它保留计划发布时的快照；是否验收必须看对应提交和实际结果，不把计划文案当运行状态。
+- **本轮范围与状态**：[控制台改版计划](CONSOLE_REDESIGN_PLAN.md)，首发 `5d19a9b402dc4a194b485e70e8192a818243e6cb`。它保留计划发布时的快照；是否验收必须看对应提交和实际结果，不把计划文案当运行状态。
 - **数据边界**：新 lab 数据本机共享；仍需登录/CSRF/Origin；旧任务所有权不变。HTTP API v1、SQL schema v2、Kafka envelope v1 是三个独立版本。
 - **改后端之前**：[Agent.md](../Agent.md)、[API 契约](API_CONTRACT.md)、[架构决策 ADR](adr/001-modular-monolith.md)。
 - **配置与凭据**：[配置说明](CONFIGURATION.md)。保留 `.env` 与忽略的 `.env.compose.local`，不新增模型 Key；已有卷不能靠随机补密码修复。
-- **已有本机栈更新**：[保留数据的升级步骤](OPERATIONS.md#组件操作台的保留数据更新)、[Compose 环境](../infra/README.md)。云端 CI 与本机验收分开；本机更新仍待协调者执行和核验。
+- **已有本机栈更新**：[保留数据的升级步骤](OPERATIONS.md#组件操作台的保留数据更新)、[Compose 环境](../infra/README.md)。云端 CI 与本机验收分开；每个新版仍须单独保留数据更新并核验。
 - **历史证据**：[学习型 v1 清单](DEVELOPMENT_PLAN.md)、[开发报告](DEVELOPMENT_REPORT.md)、[单 Agent 验收](AGENT_TEST_REPORT.md)、[界面验收](UI_TEST_REPORT.md)。保留其原提交与测试数，不充当新 lab 验收。
 - **模型与部署限制**：[单 Agent 契约](SINGLE_AGENT.md)、[Kubernetes 草稿](../infra/k8s/README.md)。独立 provider 连通性不是 live 全栈验收；Kubernetes 不是默认依赖。
 - **参与贡献**：[贡献指南](../CONTRIBUTING.md)、[安全报告](../SECURITY.md)、[第三方许可与来源](THIRD_PARTY_NOTICES.md)、[发布核对表](RELEASE_CHECKLIST.md)。

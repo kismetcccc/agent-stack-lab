@@ -94,7 +94,7 @@
 - **版本 / 状态 / 核对**：默认 `compose.yaml` 已采用；[基础设施说明](../infra/README.md)记录过 CLI `v2.35.1` 的结构验证，但宿主机 CLI 不是该文件锁定的镜像依赖；2026-10-22。
 - **学什么、为什么**：容器 running 不等于服务 ready；健康检查、迁移完成条件和应用启动顺序分别解决不同问题。Compose 管启动，不替业务实现幂等或数据备份。
 - **先读 → 再读**：[启动顺序与 depends_on](https://docs.docker.com/compose/how-tos/startup-order/) → [profiles](https://docs.docker.com/compose/how-tos/profiles/)。默认后端、可选 UI 覆盖文件和完整基础设施草稿要分开看。
-- **对应本仓库**：[compose.yaml](../compose.yaml) 的 healthcheck / depends_on / migrate；[compose.ui.yaml](../compose.ui.yaml)；[infra/drafts/compose.full.yaml](../infra/drafts/compose.full.yaml) 只是后续草稿。
+- **对应本仓库**：[compose.yaml](../compose.yaml) 的 healthcheck / depends_on / migrate；[compose.ui.yaml](../compose.ui.yaml)；更多基础设施仅属后续路线，当前 checkout 没有 `infra/drafts/compose.full.yaml`，不要把它当可运行文件。
 - **小练习**：画出“MySQL 就绪 → migrate 成功 → API / Worker”的依赖图；在已初始化的独立环境用 `docker compose config --quiet` 只检查结构，再用 `docker compose ps` 查看运行状态。前者通过不能代替后者；不要公开展开后的完整配置或凭据。
 - **源码与许可证据**：[docker/compose](https://github.com/docker/compose)；[v2.35.1 LICENSE](https://github.com/docker/compose/blob/v2.35.1/LICENSE) 为 **Apache-2.0（OSI 开源）**。这是 Compose 代码许可，不是 Docker Desktop 订阅或 Docker Docs 网站的统一许可结论。
 
@@ -103,7 +103,7 @@
 - **版本 / 状态 / 核对**：`prometheus-client==0.26.0` 已接入；`prom/prometheus:v3.3.0` 只出现在完整基础设施草稿，未因此成为默认已验收服务；2026-10-22。
 - **学什么、为什么**：Counter 记录累计次数，Histogram 记录耗时分布。标签要表达有限类别，不能用每个 task_id、原始 URL 或用户输入制造无限时序和信息泄露。
 - **先读 → 再读**：[Python 客户端 Instrumenting](https://prometheus.github.io/client_python/instrumenting/) → [Instrumentation 实践](https://prometheus.io/docs/practices/instrumentation/)。
-- **对应本仓库**：[backend/app.py](../backend/app.py) 的 `REQUESTS`、`LATENCY`、`context`、`/metrics`；[prometheus.yml](../infra/observability/prometheus.yml) 是采集配置，不是采集已成功的证据。
+- **对应本仓库**：[backend/app.py](../backend/app.py) 的 `REQUESTS`、`LATENCY`、`context`、`/metrics`；当前 checkout 未包含 Prometheus 采集配置，暴露指标不等于已接入采集服务。
 - **小练习**：先读 `/metrics`，访问一次 `/healthz` 后再读；找到对应请求计数变化，并解释为什么任务详情使用路由模板标签，而不是为每个真实任务 ID 建一组指标。
 - **源码与许可证据**：[prometheus/client_python](https://github.com/prometheus/client_python) 的 [v0.26.0 LICENSE](https://github.com/prometheus/client_python/blob/v0.26.0/LICENSE)，以及服务端 [v3.3.0 LICENSE](https://github.com/prometheus/prometheus/blob/v3.3.0/LICENSE)，主许可证均为 **Apache-2.0（OSI 开源）**；二者是独立组件。客户端 0.26.0 的发行包许可表达式另列 `Apache-2.0 AND BSD-2-Clause`，须同时检查其附带许可/NOTICE，不能把主 LICENSE 当成所有内含文件的完整许可结论。
 
@@ -112,16 +112,16 @@
 - **版本 / 状态 / 核对**：草稿镜像 `otel/opentelemetry-collector:0.123.0`；**后续阅读，当前没有完整应用埋点/导出链路验收**；2026-10-22。
 - **学什么、为什么**：日志、指标、trace 回答不同问题；跨 HTTP、消息与 Worker 的上下文传播需要显式设计。有一个叫 `trace_id` 的字段，不代表已经产生、传播并导出了标准 span。
 - **阅读顺序**：[Observability primer](https://opentelemetry.io/docs/concepts/observability-primer/) → [Context propagation](https://opentelemetry.io/docs/concepts/context-propagation/) → [Collector configuration](https://opentelemetry.io/docs/collector/configuration/)。后两章可留到扩展时，不需要先部署整套系统。
-- **对应本仓库**：[TaskService.emit / audit](../backend/service.py) 中现有业务关联 ID；[otel.yml](../infra/observability/otel.yml) 的 receiver → processor → debug exporter。`pyproject.toml` 尚未声明 OTel SDK；配置文件存在不等于应用正在发出 trace。
+- **对应本仓库**：[TaskService.emit / audit](../backend/service.py) 中现有业务关联 ID；当前 checkout 未包含 OTel Collector 配置，`pyproject.toml` 尚未声明 OTel SDK；不宣称应用正在发出 trace。
 - **小练习**：在现有调用图上圈出未来需要注入/提取上下文的位置，再列出还缺少的 SDK、span、导出和查询验证；只做设计，不将预想 span 写成真实运行轨迹。
 - **源码与许可证据**：[open-telemetry/opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-collector)；[v0.123.0 LICENSE](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.123.0/LICENSE) 为 **Apache-2.0（OSI 开源）**。
 
 ## 11. Kubernetes：后续部署章节，不用它掩盖业务一致性问题
 
-- **版本 / 状态 / 核对**：[Kind 配置](../infra/k8s/kind.yaml) 中 `kindest/node:v1.32.2`；清单已保留，**按当前 Agent.md 范围继续延期，不宣称部署已验收**；2026-10-22。
+- **版本 / 状态 / 核对**：仅保留 [Kubernetes 范围说明](../infra/k8s/README.md)，当前 checkout 没有 Kind 配置或部署清单；**按当前 Agent.md 范围继续延期，不宣称部署已验收**；2026-10-22。
 - **学什么、为什么**：存活探针解决是否重启，就绪探针解决是否接收流量；网络策略需要网络插件执行。增加副本不会自动修复重复消息、租约或单实例 relay 的约束。
 - **先读 → 再读**：[Liveness / Readiness / Startup Probes](https://kubernetes.io/docs/concepts/workloads/pods/probes/) → [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)。这是当前概念文档，具体部署前还须核对目标集群版本，不能把新版本特性直接套到草稿的 1.32.2。
-- **对应本仓库**：[infra/k8s/04-app.yaml](../infra/k8s/04-app.yaml)、[05-network-policies.yaml](../infra/k8s/05-network-policies.yaml) 与 [app.py](../backend/app.py) 的 `/healthz`、`/readyz`。默认 Compose 学习不要求同时启动集群。
+- **对应本仓库**：[Kubernetes 范围说明](../infra/k8s/README.md)与 [app.py](../backend/app.py) 的 `/healthz`、`/readyz`。默认 Compose 学习不要求同时启动集群。
 - **小练习**：只读清单，找出 API 的 liveness 和 readiness 各指向哪个端点；预测数据库暂时离线时哪些探针应失败。再解释为什么仅提交 NetworkPolicy YAML 不能证明网络隔离已生效。
 - **源码与许可证据**：[kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)；[v1.32.2 LICENSE](https://github.com/kubernetes/kubernetes/blob/v1.32.2/LICENSE) 为 **Apache-2.0（OSI 开源）**。这不是 Kind 节点镜像内所有组件的统一许可证。
 

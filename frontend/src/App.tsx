@@ -33,6 +33,9 @@ import {
 import { chapters, components, statusNames } from "./content";
 import { Explorer, roles } from "./Explorer";
 import AgentActions, { controllerLabel } from "./AgentActions";
+import PlaygroundHome, { playgrounds } from "./PlaygroundHome";
+import ComponentPlayground from "./ComponentPlayground";
+import "./playground.css";
 type Health = {
   mode?: string;
   model_mode?: string;
@@ -59,7 +62,7 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 function App() {
-  const readPage = () => location.hash.slice(1).split("?")[0] || "overview";
+  const readPage = () => location.hash.slice(1).split("?")[0] || "playground";
   const [page, setPage] = useState(readPage);
   const [selected, setSelected] = useState(
     new URLSearchParams(location.hash.split("?")[1]).get("task"),
@@ -146,13 +149,20 @@ function App() {
     options: RequestInit,
     epoch: number,
   ): Promise<T> {
+    const ensureActive = () => {
+      if (options.signal?.aborted)
+        throw new DOMException("Aborted", "AbortError");
+    };
+    ensureActive();
     const current = sessionRef.current;
     if (!current) throw new ApiError(401, "会话已失效，请重新登录。");
-    const send = (token: string) =>
-      request<T>(path, {
+    const send = (token: string) => {
+      ensureActive();
+      return request<T>(path, {
         ...options,
         headers: { ...options.headers, "X-CSRF-Token": token },
       });
+    };
     try {
       return await send(current.csrf_token);
     } catch (error) {
@@ -163,7 +173,10 @@ function App() {
       )
         throw error;
       // Only an explicit CSRF failure may refresh and retry once, never arbitrary 403s.
-      const refreshed = await request<Session>("/auth/me");
+      const refreshed = await request<Session>("/auth/me", {
+        signal: options.signal,
+      });
+      ensureActive();
       if (identityEpoch.current !== epoch)
         throw new Error("身份已变化，旧请求已忽略。");
       if (refreshed.user.id !== current.user.id) {
@@ -413,6 +426,7 @@ function App() {
   async function logout() {
     if (authLock.current || submitLock.current || !sessionRef.current) return;
     const epoch = identityEpoch.current;
+    const logoutFrom = location.hash;
     const operation = ++authOperation.current;
     authLock.current = true;
     setAuthBusy(true);
@@ -420,7 +434,8 @@ function App() {
       await authenticatedWrite("/auth/logout", { method: "POST" }, epoch);
       if (identityEpoch.current !== epoch) return;
       applySession(null);
-      nav("lab");
+      if (location.hash === logoutFrom)
+        nav(page === "lab" ? "lab" : "playground");
     } catch (error) {
       if (identityEpoch.current !== epoch) return;
       if (error instanceof ApiError && error.status === 401) applySession(null);
@@ -472,29 +487,90 @@ function App() {
       }
     }
   }
+  const authPanel = (
+    <div className="auth-box">
+      <h3>{authMode === "login" ? "登录实验室" : "创建教学帐号"}</h3>
+      <p>
+        {page === "lab"
+          ? "任务属于当前帐号。会话通过 HttpOnly Cookie 保存。"
+          : "登录后直接操作。实验数据在本地帐号间共享，不按帐号隔离。"}
+      </p>
+      {boot ? (
+        <p role="status">正在检查登录状态…</p>
+      ) : (
+        <form onSubmit={auth}>
+          <label>
+            用户名
+            <input
+              name="username"
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={80}
+              pattern="[A-Za-z0-9_-]+"
+              title="3 至 80 位英文字母、数字、下划线或横线"
+              disabled={authBusy}
+            />
+          </label>
+          <label>
+            密码
+            <input
+              name="password"
+              type="password"
+              autoComplete={
+                authMode === "register" ? "new-password" : "current-password"
+              }
+              required
+              minLength={10}
+              maxLength={128}
+              disabled={authBusy}
+            />
+          </label>
+          {authError && <Notice>{authError}</Notice>}
+          <button className="primary full" disabled={authBusy}>
+            {authBusy
+              ? "正在处理…"
+              : authMode === "login"
+                ? "登录"
+                : "注册并登录"}
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            disabled={authBusy}
+            onClick={() => {
+              setAuthMode(authMode === "login" ? "register" : "login");
+              setAuthError("");
+            }}
+          >
+            {authMode === "login" ? "没有帐号？创建帐号" : "已有帐号？返回登录"}
+          </button>
+        </form>
+      )}
+      <small>仅用于本地教学；未提供找回密码、邮箱验证或 MFA。</small>
+    </div>
+  );
   return (
     <div className="app">
       <aside className="sidebar">
-        <a className="brand" href="#overview">
+        <a className="brand" href="#playground">
           <span className="brand-mark">
             <Layers size={20} />
           </span>
           <span>
-            Stack Lab<span className="brand-small">后端架构实验室</span>
+            Stack Lab<span className="brand-small">后端组件实验室</span>
           </span>
         </a>
         <div className="nav-label">工作空间</div>
         <nav>
-          <a href="#overview" className={page === "overview" ? "active" : ""}>
-            <GitBranch size={17} />
-            总览
+          <a
+            href="#playground"
+            className={page === "playground" ? "active" : ""}
+          >
+            <FlaskConical size={17} />
+            组件实验台
           </a>
-          <a href="#learn" className={page === "learn" ? "active" : ""}>
-            <BookOpen size={17} />
-            学习路径
-          </a>
-          <div className="nav-label components-label">组件</div>
-          {roles.map((r) => (
+          {playgrounds.map((r) => (
             <a
               key={r.id}
               href={`#${r.id}`}
@@ -504,10 +580,28 @@ function App() {
               {r.name}
             </a>
           ))}
-          <div className="nav-label components-label">实践</div>
+          <div className="nav-label components-label">继续探索</div>
           <a href="#lab" className={page === "lab" ? "active" : ""}>
             <Terminal size={17} />
-            运行任务
+            任务与 Agent
+          </a>
+          <a
+            href="#overview"
+            className={
+              page === "overview" ||
+              page.startsWith("architecture-") ||
+              page === "api" ||
+              page === "worker"
+                ? "active"
+                : ""
+            }
+          >
+            <GitBranch size={17} />
+            架构说明
+          </a>
+          <a href="#learn" className={page === "learn" ? "active" : ""}>
+            <BookOpen size={17} />
+            学习路径
           </a>
           <a
             href="#experiments"
@@ -521,7 +615,7 @@ function App() {
         <div className="sidebar-bottom">
           <ShieldCheck size={14} />
           <span>
-            本地教学环境
+            本地共享教学空间
             <br />
             非生产平台
           </span>
@@ -533,12 +627,17 @@ function App() {
             工作台 <ChevronRight size={14} />{" "}
             <strong>
               {page === "lab"
-                ? "运行任务"
+                ? "任务与 Agent"
                 : page === "learn"
                   ? "学习路径"
                   : page === "experiments"
                     ? "故障实验"
-                    : roles.find((r) => r.id === page)?.name || "总览"}
+                    : page === "playground"
+                      ? "组件实验台"
+                      : roles.find(
+                          (r) =>
+                            r.id === page || `architecture-${r.id}` === page,
+                        )?.name || "架构说明"}
             </strong>
           </div>
           <div className="account">
@@ -591,12 +690,19 @@ function App() {
               <strong>运行环境</strong>{" "}
               <span>
                 {health
-                  ? `后端：${health.mode || "接口未标明"} · 模型：${health.model_mode || "以任务详情为准"}`
+                  ? health.mode === "production"
+                    ? "后端：真实组件适配器（production）"
+                    : health.mode
+                      ? `后端：${health.mode}（离线 / 测试替身）`
+                      : "后端：运行模式未知（接口未标明）"
                   : "正在确认 / 未知"}
               </span>
               <small>
-                deterministic 是确定性测试适配器，不调用真实模型；demo / test
-                不是四组件真实集成。
+                组件实验完全不使用模型。Agent：
+                {health?.model_mode === "deterministic"
+                  ? "deterministic 确定性测试控制器（不调用模型）"
+                  : health?.model_mode || "模式待确认"}
+                ；这与后端组件是否真实连接是两回事。
               </small>
             </div>
             <details>
@@ -610,8 +716,29 @@ function App() {
           </div>
           {healthError && <p className="health-warning">{healthError}</p>}
           {authError && session && <Notice>{authError}</Notice>}
-          {page === "overview" || roles.some((r) => r.id === page) ? (
-            <Explorer roleId={page} onRole={(id) => nav(id)} health={health} />
+          {page === "playground" ? (
+            <PlaygroundHome />
+          ) : playgrounds.some((item) => item.id === page) ? (
+            <ComponentPlayground
+              key={`${page}:${identityEpoch.current}`}
+              component={page}
+              authenticated={!!session}
+              authPanel={authPanel}
+              mode={health?.mode}
+              write={(path, options) =>
+                authenticatedWrite(path, options, identityEpoch.current)
+              }
+              onUnauthorized={() => applySession(null)}
+            />
+          ) : page === "overview" ||
+            roles.some(
+              (r) => r.id === page || `architecture-${r.id}` === page,
+            ) ? (
+            <Explorer
+              roleId={page.replace("architecture-", "")}
+              onRole={(id) => nav(`architecture-${id}`)}
+              health={health}
+            />
           ) : page === "lab" ? (
             <>
               {" "}
@@ -626,76 +753,7 @@ function App() {
                       <Terminal size={18} />
                     </div>
                     {!session ? (
-                      <div className="auth-box">
-                        <h3>
-                          {authMode === "login" ? "登录实验室" : "创建教学帐号"}
-                        </h3>
-                        <p>任务属于当前帐号。会话通过 HttpOnly Cookie 保存。</p>
-                        {boot ? (
-                          <p role="status">正在检查登录状态…</p>
-                        ) : (
-                          <form onSubmit={auth}>
-                            <label>
-                              用户名
-                              <input
-                                name="username"
-                                autoComplete="username"
-                                required
-                                minLength={3}
-                                maxLength={80}
-                                pattern="[A-Za-z0-9_-]+"
-                                title="3 至 80 位英文字母、数字、下划线或横线"
-                                disabled={authBusy}
-                              />
-                            </label>
-                            <label>
-                              密码
-                              <input
-                                name="password"
-                                type="password"
-                                autoComplete={
-                                  authMode === "register"
-                                    ? "new-password"
-                                    : "current-password"
-                                }
-                                required
-                                minLength={10}
-                                maxLength={128}
-                                disabled={authBusy}
-                              />
-                            </label>
-                            {authError && <Notice>{authError}</Notice>}
-                            <button
-                              className="primary full"
-                              disabled={authBusy}
-                            >
-                              {authBusy
-                                ? "正在处理…"
-                                : authMode === "login"
-                                  ? "登录"
-                                  : "注册并登录"}
-                            </button>
-                            <button
-                              type="button"
-                              className="text-button"
-                              disabled={authBusy}
-                              onClick={() => {
-                                setAuthMode(
-                                  authMode === "login" ? "register" : "login",
-                                );
-                                setAuthError("");
-                              }}
-                            >
-                              {authMode === "login"
-                                ? "没有帐号？创建帐号"
-                                : "已有帐号？返回登录"}
-                            </button>
-                          </form>
-                        )}
-                        <small>
-                          仅用于本地教学；未提供找回密码、邮箱验证或 MFA。
-                        </small>
-                      </div>
+                      authPanel
                     ) : (
                       <form onSubmit={submit}>
                         <label htmlFor="prompt">研究主题 / 任务要求</label>
@@ -1070,8 +1128,8 @@ function App() {
           )}
           <footer>
             AGENT STACK LAB <span>理解职责 · 观察证据 · 尊重边界</span>
-            <a href="#learn">
-              从学习路径开始 <ArrowRight size={13} />
+            <a href="#playground">
+              返回组件实验台 <ArrowRight size={13} />
             </a>
           </footer>
         </main>

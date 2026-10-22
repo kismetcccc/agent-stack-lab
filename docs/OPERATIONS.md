@@ -1,8 +1,8 @@
 # 运维与排障：保留事实，再恢复服务
 
-面向学习型 v1 的后端操作手册。先读 [模块契约](MODULE_CONTRACTS.md)、[配置说明](CONFIGURATION.md) 与 [故障实验](FAILURE_LABS.md)。目标是知道“哪里坏了、哪些数据仍可信、下一步如何验证”，不是一键重置一切。
+面向本地学习栈的后端操作手册，包含组件操作台 schema v2 增量更新；历史任务实验保留独立范围。先读 [模块契约](MODULE_CONTRACTS.md)、[配置说明](CONFIGURATION.md) 与 [故障实验](FAILURE_LABS.md)。目标是知道“哪里坏了、哪些数据仍可信、下一步如何验证”，不是一键重置一切。
 
-**证据边界（2026-10-22）**：基线 `f36523fa` 的 [CI 39725461902](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902) 通过真实 Compose 主链路与既有组件故障测试。本轮安全配置补缺已通过隔离临时文件单元测试；MySQL 停机探针已在 `9f892c67` 的 [CI 39728628773](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39728628773) 完成真实五阶段验证及健康恢复。最新发布/CI 状态以 [开发清单](DEVELOPMENT_PLAN.md) 和对应提交报告为准，不能沿用旧 CI 当作新增行为的证据。本文命令经过源码/官方语法核对，**本文新增备份恢复流程没有执行，恢复能力未验收**。精确 SIGKILL 窗口实验仍须独立验证；独立 provider 连通性也不是完整 live 验收。
+**证据边界（2026-10-22）**：基线 `f36523fa` 的 [CI 39725461902](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902) 通过真实 Compose 主链路与既有组件故障测试。历史学习型 v1 的安全配置补缺已通过隔离临时文件单元测试；MySQL 停机探针已在 `9f892c67` 的 [CI 39728628773](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39728628773) 完成真实五阶段验证及健康恢复。历史学习型 v1 状态见[开发清单](DEVELOPMENT_PLAN.md)，新 lab 范围见[冻结计划](COMPONENT_PLAYGROUND_PLAN.md)，实际发布/CI 以对应提交报告为准，不能沿用旧 CI 当作新增行为的证据。本文命令经过源码/官方语法核对，**本文新增备份恢复流程没有执行，恢复能力未验收**。历史精确 SIGKILL 窗口证据见[开发报告](DEVELOPMENT_REPORT.md)，不覆盖新 lab；独立 provider 连通性也不是完整 live 验收。
 
 ## 1. 操作前的最小清单
 
@@ -42,7 +42,7 @@ docker compose config --quiet
 
 默认命令保留原文件并拒绝覆盖。已具备完整开发凭据时直接校验配置，不需要重新生成。
 
-本轮新增的显式补缺入口如下，已通过隔离临时文件单元测试；发布状态见开发清单，使用前确认所检出版本已包含该选项：
+历史学习型 v1 新增的显式补缺入口如下，已通过隔离临时文件单元测试；发布状态见开发清单，使用前确认所检出版本已包含该选项：
 
 ```bash
 python scripts/infra-init-env.py --help
@@ -99,6 +99,35 @@ docker compose -f compose.yaml down
 
 **不要把 `down -v` / `down --volumes`、`docker volume prune` 或 `docker system prune --volumes` 用作普通停止或故障恢复。** CI 的一次性卷销毁是受控测试清理，不是日常运维范例。删卷须单独确认项目、数据归属、备份及不可恢复后果。[Compose down 官方说明](https://docs.docker.com/reference/cli/docker/compose/down/)
 
+### 组件操作台的保留数据更新
+
+**这是供协调者在授权本机环境执行的操作说明，不是本机已更新的记录。** 由协调者在新功能对应的云端完整 CI 通过后，核对用户本机目标提交、已有 project、Compose 文件、卷和忽略的 `.env.compose.local`，再更新同一栈。保留原 `.env`、模型配置、已有账号/任务及教学数据；不新建凭据，不启用 live，不复制云端配置，不删卷。
+
+1. 核对目标 commit 和 CI 的真实迁移/组件/浏览器证据，不拿历史 `102491d2` 绿灯替代。先记录已有账号/任务及 lab 数据的最少非秘密基线；确定原数据卷归属和可接受的维护窗口。
+2. 在原项目中构建应用镜像，停止新写入（包括其他浏览器/脚本），暂停 gateway/API/Worker；保留 MySQL/Kafka/Mongo/Redis 与原卷运行。不要以更换 project 或新建空库规避迁移。
+3. 显式运行新版本 `python -m backend.migrate`，保留脱敏退出结果；**迁移失败就停止后续更新**。部分正确的 v2 DDL 可以验证后补齐；未知/冲突结构先诊断，不能改版本号/删表强行通过。
+4. 迁移成功才重建 API/Worker/UI。核对 `/readyz`、版本集合 `{1,2}`、旧账号登录/任务所有权和旧结果，再按[四组件教程](COMPONENT_PLAYGROUND_GUIDE.md)做真实 smoke。
+5. 记录目标提交、迁移输出、旧数据保留、真实四操作与浏览器结果。任何一项未做就写未完成；云端通过不是用户本机已更新。
+
+下例只用于**已存在且已确认使用 `.env.compose.local` 的同一个本机栈**。先在当前终端将 `EXISTING_PROJECT` 设置为实际已核验的 Compose project；这里不提供默认值，以免误建另一组卷。数据库须已正常运行。示例仅做 shell 语法检查，未在本文编写环境执行 Docker 更新：
+
+```bash
+test -n "${EXISTING_PROJECT:-}" || { printf '%s\n' '先核对并设置已有 Compose project'; exit 1; }
+test -f .env.compose.local || { printf '%s\n' '保留并核对原配置；不要生成替代凭据'; exit 1; }
+LOCAL_DC=(docker compose -p "$EXISTING_PROJECT" --env-file .env.compose.local -f compose.yaml -f compose.ui.yaml)
+"${LOCAL_DC[@]}" config --quiet || exit 1
+"${LOCAL_DC[@]}" ps --all
+"${LOCAL_DC[@]}" build api worker migrate gateway || exit 1
+"${LOCAL_DC[@]}" stop gateway api worker || exit 1
+"${LOCAL_DC[@]}" run --rm --no-deps migrate || { printf '%s\n' '迁移未通过；保留卷并诊断，不继续更新'; exit 1; }
+# 已显式迁移且原数据依赖正常；不重建/删除数据服务。
+"${LOCAL_DC[@]}" up -d --no-deps --wait --wait-timeout 300 api worker gateway || exit 1
+curl -fsS http://localhost:8081/readyz
+"${LOCAL_DC[@]}" ps --all
+```
+
+`--no-deps` 不是跳过迁移的捷径：这里只在上一步显式迁移成功、原依赖正常时使用。`readyz` 仍不能替代 Kafka 收取回执、Redis 实际到期或旧数据核验。回退代码前也必须先确认 schema/协议兼容，不自动删除 v2 表、改历史版本或恢复旧卷覆盖新数据。
+
 ## 4. 状态、健康、指标：各自只证明自己的范围
 
 实现入口：[app.py](../backend/app.py)、[worker.py](../backend/worker.py)、[service.py](../backend/service.py)。
@@ -106,16 +135,19 @@ docker compose -f compose.yaml down
 | 入口/现象 | 能证明什么 | 不能据此证明什么 |
 |---|---|---|
 | `/healthz` 200 | API 进程能响应 | SQL、消息、结果库或 Worker 可用 |
-| `/readyz` 200 | SQL 可读取 `schema_version=1`、Mongo ping、Kafka broker 元数据可取 | Redis、真实 provider、每条消息/任务、全部 schema 完整性 |
+| `/readyz` 200 | SQL 版本集合 `{1,2}` 及必要表/索引结构校验通过、Mongo ping、Kafka broker 元数据可取 | Redis、真实 provider、每条消息/任务、全部跨库数据一致性 |
 | `/readyz` 503 | 至少一个必需探针失败，响应显示依赖名 | 所有请求已被网关拒绝；代码没有全局自动摘流 |
 | `mode=test/demo` | 明示使用内存 Mongo/Kafka 替身 | 真实四组件通过 |
 | Compose `healthy` | 配置的健康命令最近成功 | 自动修复、数据一致性、任务正在推进；仅 unhealthy 不必然触发重启 |
-| Worker `--healthcheck` | `/tmp/worker-heartbeat` 修改时间在 30 秒内 | executor/relay/recovery 每个循环正常；该心跳仅由 consumer poll 主循环刷新 |
+| Worker `--healthcheck` | `/tmp/worker-heartbeat` 修改时间在 30 秒内 | executor/relay/recovery/lab observer 每个循环正常；该心跳仅由任务 consumer poll 主循环刷新 |
 | `/metrics` | `lab_http_requests_total`、`lab_http_request_duration_seconds` 与客户端默认指标 | Outbox 长度、任务成功率、过期租约、完整 tracing/告警平台 |
-| 202 / `pending` | SQL 事务已接受任务及 Outbox | Kafka 已投递、Agent 已执行 |
+| 原任务 202 / `pending` | SQL 事务已接受任务及 Outbox | Kafka 已投递、Agent 已执行 |
 | `ready` / `running` | Inbox 已接受 / 当前 attempt 被领取 | 卡住不会超时；租约/fence 仍决定提交资格 |
 | `retry_wait` / `failed` | 持久化退避 / 终态失败 | Kafka DLQ 已确认接收；需另看待发 Outbox |
 | `succeeded` | SQL 已提交结果引用 | Mongo 现在一定可读；仍须读取结果，缓存也不能跳过 SQL 授权 |
+| lab Kafka `acknowledged` | 已保存真实 producer callback 确认与元数据 | 消费者收到；要另查 `consumer.received` |
+| lab Kafka `unconfirmed` | 尚无已保存的生产确认 | 消息绝未投递；同 ID 查询不重新发送 |
+| lab Redis `exists:false` / `ttl_ms=-2` | 新读取时该 key 不存在 | Redis 不可用；后者是 503 错误 |
 
 ```bash
 curl -fsS http://localhost:18080/metrics | grep '^lab_http_'
@@ -154,6 +186,7 @@ COMMIT;
 
 解读方法：
 
+- 当前 schema 版本应同时保留 1、2；只有 1 不满足新应用 readiness。不要改版本行掩盖迁移缺失。
 - Outbox 无返回行表示待发数为零；非零可能是正常短暂排队。观察重复采样的趋势和 relay 错误，而不是马上删记录。当前 Outbox 没有独立 `created_at`，不要凭空写“精确最老待发年龄”指标。
 - `expired_running>0` 应由 recovery 处理；默认租约 120 秒、最多 3 次尝试，但以当前配置为准。一直不下降时查 executor/recovery 与 SQL，**不要 `UPDATE tasks SET status=...` 绕过 fence**。
 - `unfinished_attempts` 包含正在合法运行的工作；不能仅凭大于零判断坏数据。排空备份要求其为零。
@@ -186,7 +219,22 @@ docker compose -f compose.yaml ps --all
 
 这不是“readyz 失败就重启 MySQL”的自动策略。迁移失败、权限错误、磁盘满、坏消息、正在进行的升级都需要各自诊断。恢复后使用原 task_id 和原幂等键观察，不反复提交新任务掩盖原任务丢失。
 
-### Kafka poison message 的明确限制
+### 组件操作台的单独排障
+
+| 现象 | 正确判断与下一步 |
+|---|---|
+| lab MySQL/Mongo 记录消失 | 数据本机共享，其他登录页可改单条；刷新/按 ID 查。合法 ID 不存在是 404，不是账号隔离 |
+| Redis 503 `redis_unavailable` | 实验不能降级。恢复原 Redis 与匹配配置再读指定 key；不要当成已过期，也不要清全库缓存 |
+| Redis TTL 归零但未得到新响应 | 仅浏览器估算，仍未确认到期。按「再次读取」；不可用时保留错误，不伪造 `-2` |
+| Mongo 写后回读失败 | 返回 `document_unavailable`；写入可能已经发生，先查列表/ID，不用输入框冒充落库 |
+| Kafka 未确认/响应丢失 | 保留发送前 UUID，GET 原 ID；同 ID 同内容 POST 也不会再发送，不能用新 ID 自动补发 |
+| Kafka 已确认但尚未收取 | 核对原 Worker、lab observer 日志、SQL 可写性、固定组 `agent-lab-observer-v1`；短时轮询结束不等于丢失 |
+| Kafka `unconfirmed + received` | 两种观察可以并存；消费回执证明实际收到，不手工补 ack 或重发 |
+| MySQL v2 readiness 失败 | 先看显式迁移退出码和结构诊断；不得因版本 1 还存在就当 ready，也不删卷重来 |
+
+只在独立合成环境做暂停 Worker/停 Redis/Mongo/Kafka 的故障实验，不在待保留的用户本机数据上随手试。恢复后分别检查真实读写/收取与原任务回归。lab observer 遇 SQL/offset 失败会关闭重建 consumer、从已提交位置重读；无效协议可拒绝回执并越过该无效记录。**下节毒消息说明针对原任务 consumer，不是 lab observer。**
+
+### 原任务 Kafka poison message 的明确限制
 
 [worker.py](../backend/worker.py) 关闭自动 commit/store；先解码并持久化 Inbox，再同步提交 offset。无效 JSON、不支持的 schema/type、未知 task 或 SQL 失败会使主循环退出，不应越过未持久化消息。Compose 可重启该进程，但相同毒消息可能再次阻塞；**任务执行失败的 DLQ 不等于消费者已有毒消息隔离机制**。
 
@@ -240,7 +288,9 @@ docker compose -f compose.yaml stats --no-stream
 
 ### 8.1 演练范围与不可恢复部分
 
-仅允许第 3 节的独立 synthetic 项目：停止新提交，所有任务已 `succeeded/failed`、无未结束 attempt、无待发 Outbox，并确认已创建事件进入 Inbox。只恢复 **MySQL 中已经提交的终态记录及其 Mongo 结果**。
+**范围仍是旧任务/结果，不是 lab 全数据恢复方案**：本节 Mongo 导出只包含 `agent_lab.results`，不包含 `lab_documents`；不会恢复 Redis 教学键或 Kafka 原消息。若源中已有须保留的 lab 数据，停止使用本节流程，先另行设计并验收完整备份。不要把 MySQL 中恢复出的历史 receipt 当成恢复了 broker 消息。
+
+仅允许第 3 节的独立 synthetic 项目，且没有需保留的 lab 数据：停止新提交，所有任务已 `succeeded/failed`、无未结束 attempt、无待发 Outbox，并确认已创建事件进入 Inbox。只恢复 **MySQL 中已经提交的终态记录及其 Mongo 结果**。
 
 **MySQL + Mongo 导出不会自动恢复 Kafka 历史、消费组 offset、DLQ 消息、在途交付或 Redis 缓存。** 本演练创建空 Kafka/Redis 卷；失败终态保留 SQL 记录，但不重新生成丢失的 DLQ 历史。任何非终态/待发工作都不在本演练保障范围，不能在恢复端启动 Worker“碰运气继续跑”。这不是跨库分布式快照，也不覆盖在线写入、时间点恢复、HA、RPO/RTO 或真实模型去重计费。
 
@@ -360,7 +410,7 @@ db.results.findOne(
 
 每个成功引用必须存在，`task_id`、`attempt_id` 与 SQL 对应；本次新建任务应是 deterministic/scripted_test。私密记录该投影的内容/步骤以便恢复后逐项比较。Mongo 总数可能多于 SQL 成功数，因为存在旧 attempt 孤儿；不要因此删除文档，也不要把多出的文档认作成功任务。
 
-新建目标私有配置，使用新凭据，不复制源 `.env`。`--path` 为本轮安全初始化入口，先确认该版本已通过相应测试；目标目录也须在原生 POSIX 文件系统：
+新建目标私有配置，使用新凭据，不复制源 `.env`。`--path` 为既有安全初始化入口，先确认该版本已通过相应测试；目标目录也须在原生 POSIX 文件系统：
 
 ```bash
 DST_DIR=$(mktemp -d "$PWD/.secrets/operations/restore.XXXXXX")
@@ -405,9 +455,9 @@ SQL dump 没用 `--databases`，因此导入时显式选择新建的 `agentlab`�
 
 必须逐项通过，不能只以“命令返回 0”宣称恢复成功：
 
-1. 目标 `schema_version` 为 1；任务状态、users/attempts/events/outbox/inbox 计数与源基线一致；非终态/未结束 attempt/待发 Outbox/created 未入 Inbox 均为零。
+1. 导入后版本集合与源私密基线一致；当前 v2 源应为 `{1,2}`。若是历史 `{1}` 备份，还必须单独执行并核验显式 v1→v2 后才能启动新 API。任务状态、users/attempts/events/outbox/inbox 计数与源基线一致；非终态/未结束 attempt/待发 Outbox/created 未入 Inbox 均为零。
 2. **所有** SQL 成功 `result_id` 都能在目标 Mongo 读取；task_id/attempt_id、元数据、正文及步骤与源私密基线一致。小规模合成演练逐条核对，不仅抽查一个或只比数量。
-3. 启动空 Kafka/Redis 和 API，但**不启动 Worker**。导入已带 schema，运行 migrate 只验证 v1 初始化入口不会报错，不是升级证明：
+3. 启动空 Kafka/Redis 和 API，但**不启动 Worker**。导入已带 schema；运行 migrate 验证当前 v2，或对合规历史 v1 执行显式增量。下面命令本身不能证明旧数据保留；仍须逐项核验，也不能替代本轮独立真实迁移测试：
 
    ```bash
    "${DST_DC[@]}" up -d --wait --wait-timeout 180 kafka redis
@@ -436,12 +486,16 @@ SQL dump 没用 `--databases`，因此导入时显式选择新建的 `agentlab`�
 
 ## 9. schema、依赖升级与回退的边界
 
-当前 [migrate.py](../backend/migrate.py) 仅执行 v1 `Base.metadata.create_all()` 并记录版本 1。它可重复初始化缺少的表，**不会升级既有表的列/索引，也没有 down migration**。`/readyz` 只查版本记录，不检查每个列，因此 readiness 绿不代表 schema 与新代码兼容。
+当前 [migrate.py](../backend/migrate.py) 是明确的 **v1→v2 加法迁移**，不是对扩大后的 metadata 调用 `create_all` 冒充升级。全新库按冻结原表集合初始化 v1，再加 v2；已有 `{1}` 验证原结构后增加 `lab_records`、`lab_kafka_messages` 与固定索引，最后追加版本 2。原账号、会话、任务、Outbox/Inbox、attempts/events 不迁走、不改 owner，不删除版本 1。
+
+允许入口状态为全新空库、合规 `{1}`、合规 `{1,2}`。未知未来版本、缺 v1 的 v2、没有合法版本历史的旧表或冲突结构，在自动变更前拒绝。MySQL DDL 有隐式提交：正确的部分 v2 对象可验证后补齐，但不能声称整个升级可由一个事务回滚。v2 版本标记也必须与表、列类型/可空性、主键、索引/唯一约束相符；重复迁移无数据改变。API readiness 和 Worker 启动都要求当前结构。
+
+**只支持这条显式两版本路径，没有通用升级平台、自动降级或 down migration**。真实 v1→v2 的兼容证据须使用冻结 v1 和旧合成数据，而不是用最新 metadata 创建“假 v1”。迁移测试通过也不证明备份恢复、数据库大版本回退、HA 或灾备。HTTP `/api/v1` 与 Kafka envelope `schema_version:1` 没有因此变为 v2。
 
 | 变更 | 安全起点 | 不能做的“回退” |
 |---|---|---|
 | 仅代码/依赖，schema/文档协议未变 | 单独分支、小步更新、重新锁定；离线测试后跑隔离真实集成/适用 UI；记录可用旧镜像与 commit | 只改 tag 就假设相同卷可安全运行旧代码 |
-| SQL 表结构/数据语义 | 新增真正版本化迁移；已有数据升级/失败恢复测试；先做已验证备份和隔离演练 | 修改历史 create_all、手工改 version=1 冒充升级/降级 |
+| SQL 表结构/数据语义 | 本轮仅支持显式 v1→v2；未来继续追加迁移及旧数据/失败恢复测试，先做适用备份与隔离演练 | 修改冻结 v1、手改版本行或删 v2 表冒充降级 |
 | Mongo 文档或 Kafka 事件格式 | 保留旧 reader/consumer 兼容，按契约处理 schema version；验证回放与旧结果 | 修改消费者后跳过无法识别消息；把旧文档伪装成新 Agent 轨迹 |
 | MySQL/Mongo/Kafka/Redis 大版本 | 阅读对应官方升级/降级约束，在复制的合成数据上演练；锁定已验收镜像 | 用旧数据库二进制直接打开新版本改写过的卷 |
 | 密码变更 | 分别更新库内账户与应用配置，验证新连接，再按计划撤旧 | 只覆盖 `.env`、生成新密码、删卷“让它生效” |

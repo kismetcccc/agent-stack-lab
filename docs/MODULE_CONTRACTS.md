@@ -2,9 +2,30 @@
 
 本页回答“**每个后端模块到底完成什么，出了问题交给谁，现有测试证明到哪里**”。宏观选型与架构图见 [ARCHITECTURE.md](ARCHITECTURE.md)，字段与 HTTP 状态码以 [API_CONTRACT.md](API_CONTRACT.md) 为准；本页不另定义一套 API，也不把后续组件写成已实现功能。
 
-初次审计基线：`f36523fa` 的代码与 [CI 运行](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902)。其 JUnit 记录为 **145 项后端/采集器测试、13 项真实组件集成、30 项浏览器测试，均无失败或跳过**。本次文档核对也在无 Docker 的环境重跑了前 145 项及 Ruff，全部通过；没有在该环境重新运行 Compose。测试数量不是功能保证，后面的对应关系和未验证边界更重要。
+初次审计基线：`f36523fa` 的代码与 [CI 运行](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902)。其 JUnit 记录为 **145 项后端/采集器测试、13 项真实组件集成、30 项浏览器测试，均无失败或跳过**。该次历史文档核对在无 Docker 的环境重跑了前 145 项及 Ruff，全部通过；没有在该环境重新运行 Compose。测试数量不是功能保证，后面的对应关系和未验证边界更重要。
 
-后续 `9f892c67` 的初始化与 MySQL 故障已验收；本轮精确宕机、HTTP 示例与构建上下文保护的更新见 [当前验收报告](DEVELOPMENT_REPORT.md)，不能把上述初次审计数字当最新提交的测试总数。
+后续 `9f892c67` 的初始化与 MySQL 故障已验收；学习型 v1 精确宕机、HTTP 示例与构建上下文保护的更新见 [当前验收报告](DEVELOPMENT_REPORT.md)，不能把上述初次审计数字当最新提交的测试总数。
+
+## 0. 先看四个独立实验，不必经过任务链路
+
+直接使用见[组件操作台教程](COMPONENT_PLAYGROUND_GUIDE.md)。本节描述当前新增源码边界，**不是新增功能的真实验收记录**；后续第 2–6 节的任务/Agent 教学保留为独立进阶内容。
+
+| 组件 | 模块入口 | 独立教学存储 | 成功与故障边界 |
+|---|---|---|---|
+| 通用 API | [lab_api.py](../backend/lab_api.py)、[lab_schema.py](../backend/lab_schema.py) | 不新增身份层 | 复用登录/CSRF/Origin；字段、分页、UUID、UTF-8/JSON 预算先校验，错误保留 request_id |
+| MySQL CRUD | [lab_service.py](../backend/lab_service.py) | `agentlab.lab_records` | 提交后重新读记录；SQL 失败不返回假记录；删除只限已确认单条 |
+| Redis KV/TTL | [lab_adapters.py](../backend/lab_adapters.py) `RedisLabKV` | `lab:kv:` 前缀 | 固定内部脚本原子 GET/PTTL，PUT 回读；不存在是 200/-2，不可用是 503，不能套用原缓存降级 |
+| Mongo JSON CRUD | `MongoLabDocuments`、lab service | `agent_lab.lab_documents` | 独立 wrapper 和用户 document，写后真实回读；PUT 替换 document，保留 ID/创建时间；无查询操作符输入 |
+| Kafka 发送 | `KafkaLabMessages`、lab service | SQL `lab_kafka_messages`；topic `agent.lab.messages.v1` | 先登记 ID，再一次有界发送；callback 才确认；不确定不等于未投递，同 ID 不再发送 |
+| Kafka 观察 | [lab_worker.py](../backend/lab_worker.py) | group `agent-lab-observer-v1`；同登记表的独立 receipt 列 | 真 poll、协议/登记核对、SQL 提交回执后同步 commit offset；失败重建 consumer，不跨过未提交记录 |
+
+**全部 lab 数据本机共享**，没有 owner/tenant 字段或按账号过滤；不是去掉登录。旧任务的 owner 授权、账号表、结果 collection、缓存前缀、Outbox/Inbox 与消费组保持原语义。`Runtime.lab` 与 `Runtime.tasks` 分开；固定操作允许列表不允许任意 SQL、Redis 命令/Lua、Mongo 查询、Kafka 管理或模型工具。
+
+Kafka producer ack 与 receipt 只更新各自字段；允许 `unconfirmed + received`，首次有效 receipt 稳定。相同 ID 同 payload 只读快照，不会自动补发；不同 payload 409。无效/未知 ID/不匹配消息可拒绝回执并提交该无效 record，但 SQL 故障必须抛出、重连重读，不能错当无效协议跳过。**这与下文原任务 consumer 遇毒消息退出的行为不同**，不可混用解释。
+
+MySQL/Mongo/Kafka 列表是有界分页；Redis 只按指定 key 观察。MySQL/Mongo 删除需确认单条；Redis TTL 或单 key 删除；没有全局清理、Kafka 删除/重放。共享内容不放秘密，HTML/脚本只作数据展示。详细字段/预算以 [API 契约](API_CONTRACT.md)为准。
+
+新增验收必须分别证明真实 MySQL v1→v2 与旧数据保留、CRUD 持久回读、Redis 实际到期/故障、Kafka broker 确认/真实消费/暂停恢复，以及实际浏览器。离线 Memory 适配器不证明这些事实；旧审计测试计数不自动覆盖本节。
 
 ## 1. 先分清“模块”“进程”和“存储”
 
@@ -22,9 +43,9 @@
 | 装配、配置与迁移 | [runtime.py](../backend/runtime.py)、[config.py](../backend/config.py)、[migrate.py](../backend/migrate.py) | 可信进程配置 → 适配器/初始 schema | 真组件与测试替身明确分开 |
 | 运维与测试辅助 | `app.py` 探针/指标；`worker.py` 心跳；[faults.py](../backend/faults.py) | 观测请求/显式测试开关 → 状态、指标或暂停 | 不是业务恢复的替代品 |
 
-实际部署是 **API 进程 + Worker 进程 + 一次性迁移进程**。Worker 有 consumer 主线程、relay 线程和 executor 线程；`recover()` 在 executor 循环中先于 `execute_once()` 调用，**不是第四个独立线程或调度服务**。多个后端模块不等于多个 Agent。
+实际部署是 **API 进程 + Worker 进程 + 一次性迁移进程**。Worker 有原任务 consumer 主线程、relay 线程、executor 线程，以及独立 lab consumer 线程；`recover()` 在 executor 循环中先于 `execute_once()` 调用，**不是另一个独立线程或调度服务**。多个后端模块不等于多个 Agent。
 
-## 2. 用一条具体任务串起所有契约
+## 2. 可选进阶：用一条原任务串起任务模块
 
 示例合成材料：`[search:销量] [stats] 材料：销量 10 20 30`。沿用[现有 curl 闭环](FAILURE_LABS.md#curl-后端闭环bash--wsl2无需前端)注册和提交，只替换 `prompt`；不需要模型 key。脚本控制器会读取材料、字面搜索，再按观察结果决定是否统计，不能把这个分支写成真实 LLM 推理。
 
@@ -188,9 +209,9 @@ LIMIT 100;
 - **证据边界**：provider 单元测试使用可控 HTTP transport，不是真实供应商网络；默认 CI 为脚本模式。任何独立的真实 provider 小样本也不等于完整 API→Kafka→Worker→结果→界面的 live 验收，更不等于通用模型能力评测。
 - **学习实验**：先运行工具/provider 单元测试，再用本页合成材料走完整默认链路；没有显式授权与私密配置时不要为学习实验启用真实模型。
 
-## 6. 可运行的功能—测试对应表
+## 6. 原任务模块的功能—测试对应表
 
-下表的测试名称均存在于仓库。单元测试的 SQLite/MemoryBus/MemoryDocuments 只证明代码分支，**不能证明 MySQL 行锁、Kafka offset 或 Mongo/Redis 网络行为**。
+下表保留原任务模块的测试映射，不是新 lab 的通过清单。单元测试的 SQLite/MemoryBus/MemoryDocuments 只证明代码分支，**不能证明 MySQL 行锁、Kafka offset 或 Mongo/Redis 网络行为**。
 
 | 功能 | 快速代码测试 | 真实组件证据 / 未证明部分 |
 |---|---|---|
@@ -201,7 +222,7 @@ LIMIT 100;
 | Mongo 先持久化、只公开已提交动作 | `test_document_failure_never_success`；[test_agent.py](../backend/tests/test_agent.py) 的 steps/legacy/metadata 测试 | [test_single_agent.py](../tests/integration/test_single_agent.py)、recovery 旧 fence 文档检查；未覆盖孤儿清理 |
 | Redis 可丢弃、TTL 与回源 | `test_cache_aside_and_outage` | `test_full_chain_and_duplicate_event` 及 [outage_probe.py](../tests/integration/outage_probe.py)；无缓存命中率/压测结论 |
 | Agent 工具、预算和模式 | [test_agent.py](../backend/tests/test_agent.py)、[test_agent_tools.py](../backend/tests/unit/test_agent_tools.py)、[test_agent_provider.py](../backend/tests/unit/test_agent_provider.py) | 真实组件集成验证 scripted 工具动作持久化；live 全链路未在默认 CI 验收 |
-| 初始迁移、健康和配置 | `test_migration_repeat_and_sqlite_guard`、`test_validation_origin_readiness`、`test_username_normalization_and_invalid_config` | Compose migrate→API/Worker；不证明已有数据库 schema 升级/回滚、备份恢复或 Kubernetes |
+| 初始迁移、健康和配置 | `test_migration_repeat_and_sqlite_guard`、`test_validation_origin_readiness`、`test_username_normalization_and_invalid_config` | 旧测试证明其当时的初始化路径；本轮 v1→v2 必须有独立真实升级证据；均不证明通用回滚、备份恢复或 Kubernetes |
 
 **复现入口**（在仓库根目录；按 README 先准备锁定依赖）：
 
@@ -220,15 +241,17 @@ bash scripts/test-integration.sh
 
 真实集成脚本先跑 11 项正常链路/API/Agent 测试，再独占 Worker 执行 2 项恢复测试，并另跑 Redis/Kafka/Mongo/MySQL 停机和 Worker 重建探针。MySQL 五阶段场景已在 `9f892c67` CI 实跑通过。**这些脚本阶段不全部体现在“13”这个 JUnit 数字中**；应同时核对 CI 步骤和恢复日志。前端的单元、浏览器证据独立，不拿 UI 截图替代后端断言。
 
-`scripts/test-crash-windows.sh` 已修复并接入本轮 CI，验证四个精确 SIGKILL 窗口；`102491d2` / CI 39731470818 的四窗口已真实运行通过。不能用单元测试或旧提交的标准恢复测试代替它，状态见当前报告。另有 `scripts/test-http-smoke.py` 可执行文档主功能闭环。
+`scripts/test-crash-windows.sh` 在历史学习型 v1 已修复并接入 CI，验证四个精确 SIGKILL 窗口；`102491d2` / CI 39731470818 的四窗口已真实运行通过。不能用单元测试或旧提交的标准恢复测试代替它，状态见当前报告。另有 `scripts/test-http-smoke.py` 可执行文档主功能闭环。
 
 ## 7. 配置、迁移、部署与观测的实际能力
 
 ### 7.1 Runtime 和 schema
 
-`Runtime` 将业务与适配器接起来：`LAB_MODE=production` 选择真实 Kafka/Mongo，test/demo 选择内存替身；SQLite 在 production 明确拒绝。这个 mode 名称只描述适配器，**不是生产就绪认证**。Redis 是否启用独立由 URL 决定。API 不自动建表；Compose 的单次 `python -m backend.migrate` 完成后才启动 API/Worker。
+`Runtime` 将业务与适配器接起来：`LAB_MODE=production` 选择真实 Kafka/Mongo，test/demo 选择内存替身；SQLite 在 production 明确拒绝。这个 mode 名称只描述适配器，**不是生产就绪认证**。Redis 是否配置由 URL 决定：原结果缓存可禁用/降级，lab Redis 未配置或故障则明确返回 503。API 不自动建表；Compose 的单次 `python -m backend.migrate` 完成后才启动 API/Worker。
 
-当前迁移是 v1 初始 `create_all` 与版本记录，可重复执行初始建表，**不能升级已存在的表结构**。新增列/索引时必须增加真正的版本迁移和已有数据升级测试，不能修改模型后重跑 create_all 就宣称完成升级。
+当前 [migrate.py](../backend/migrate.py) 冻结 v1 原表集合，对全新库先建 v1、再追加 v2；已有 `{1}` 库校验原结构后仅增加 `lab_records`、`lab_kafka_messages` 及固定索引，最后追加版本 2，保留 1。正常当前版本集合为 `{1,2}`。版本标记、列类型/可空性、主键、索引/唯一约束均需核对；未知版本、缺历史版本、冲突结构拒绝自动改动。
+
+MySQL DDL 隐式提交：只支持识别正确的部分 v2 表/索引后补齐，不承诺整个 DDL 事务自动回滚。重复迁移验证后不改变数据；已有 v2 标记也不能掩盖缺表/错误结构。API readiness 与 Worker 启动要求当前 schema 校验通过。**支持的两版本增量路径不是通用 schema 平台**；未来结构变化仍须新增显式迁移与旧数据测试，没有自动 down migration、HA 或灾备承诺。
 
 默认 Compose 只启动 MySQL、Kafka、Mongo、Redis、migrate、API、Worker；数据服务不发布主机端口，API 只绑定本机 8080。UI/Nginx 为显式覆盖配置，见 [UI_GUIDE.md](UI_GUIDE.md)。数据卷分开持久化，普通 `docker compose down` 保留数据；删卷不是停止或故障恢复方法。镜像 tag 和依赖锁定支持复现，但不等于漏洞/支持周期审计或 digest 不可变保证。
 
@@ -237,9 +260,9 @@ bash scripts/test-integration.sh
 | 观察入口 | 实际检查/输出 | 不能据此推断 |
 |---|---|---|
 | `GET /healthz` | API 进程返回 ok，不访问外部依赖 | 四组件在线、任务能成功 |
-| `GET /readyz` | SQL schema_version=1 可读、Mongo ping、Kafka broker 元数据；test/demo 明示替身 | **不探测或列出 Redis**；不检查 live 凭据/供应商和 Worker 执行能力 |
+| `GET /readyz` | SQL 版本集合 `{1,2}` 及已知必要表/索引结构正确、Mongo ping、Kafka broker 元数据；test/demo 明示替身 | **不探测或列出 Redis**；不检查 live 凭据/供应商和 Worker 执行能力 |
 | `GET /metrics` | `lab_http_requests_total`、`lab_http_request_duration_seconds` 及客户端默认指标；route 用模板避免 task UUID 高基数 | 没有任务成功率、Outbox 积压、重试数、租约过期数、完整 tracing |
-| `python -m backend.worker --healthcheck` | consumer 主循环写出的 heartbeat 文件是否小于 30 秒 | 不单独验证 executor/relay/recovery 工作进度，不能当全部模块健康证明 |
+| `python -m backend.worker --healthcheck` | consumer 主循环写出的 heartbeat 文件是否小于 30 秒 | 不单独验证 executor/relay/recovery/lab observer 工作进度，不能当全部模块健康证明 |
 | `GET .../events`、`.../attempts` | SQL 生命周期、组件名、trace_id 与尝试结果 | 不等于跨服务 OpenTelemetry spans，也不包含失败尝试完整工具步骤 |
 | API/Worker 错误日志 | API 未知异常记录 request_id/异常类型；Worker loop 记录失败类型，避免原始秘密消息 | 不是完整结构化 JSON 业务审计或现成告警平台 |
 

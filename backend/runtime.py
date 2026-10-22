@@ -1,6 +1,15 @@
 from backend.adapters import KafkaBus, MemoryBus, MemoryDocuments, Model, MongoDocuments, ProgressCache
 from backend.config import Settings
 from backend.db import connect
+from backend.lab_adapters import (
+    KafkaLabMessages,
+    MemoryLabDocuments,
+    MemoryLabKV,
+    MemoryLabMessages,
+    MongoLabDocuments,
+    RedisLabKV,
+)
+from backend.lab_service import PlaygroundService
 from backend.service import TaskService
 
 
@@ -15,4 +24,10 @@ class Runtime:
         self.cache = ProgressCache(self.settings.redis_url)
         self.tasks = TaskService(
             self.sessions, self.settings, self.documents, self.bus, self.model, self.cache
+        )
+        self.lab = PlaygroundService(
+            self.sessions,
+            MemoryLabDocuments() if lightweight else MongoLabDocuments(self.documents.client),
+            MemoryLabKV() if lightweight else RedisLabKV(self.cache.client),
+            MemoryLabMessages() if lightweight else KafkaLabMessages(self.bus),
         )

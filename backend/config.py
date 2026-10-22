@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
 
+from backend.lab_schema import LAB_TOPIC
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -19,6 +21,8 @@ class Settings:
     dlq_topic: str = os.getenv("KAFKA_DLQ_TOPIC", "agent.tasks.dlq")
 
     def __post_init__(self):
+        if LAB_TOPIC in {self.topic, self.dlq_topic}:
+            raise ValueError("Task and DLQ topics must not use the reserved lab topic")
         if self.model_mode not in {"deterministic", "live"}:
             raise ValueError("MODEL_MODE must be deterministic/live")
         if self.lease_seconds <= 0 or not 1 <= self.max_attempts <= 100:

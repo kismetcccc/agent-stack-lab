@@ -1,7 +1,8 @@
 # 当前后端开发环境
 
-本轮默认仅运行 API、Worker、一次性迁移与 MySQL / Kafka / MongoDB / Redis。
-可选前端与同源网关已通过独立验收，使用 `compose.ui.yaml` 显式启用，不是后端独立测试的依赖。Kubernetes 与外围可观测性草稿仍未做运行验收。
+默认运行 API、Worker、一次性迁移与 MySQL / Kafka / MongoDB / Redis。可选 `compose.ui.yaml` 提供 localhost:8081 同源界面，主入口改为直接四组件实验台；无需先创建 Agent 任务，不新增服务、凭据或模型调用。原前端的历史验收不等于新操作台已验收；真实 CI 与用户本机更新分开记录。Kubernetes 与外围可观测性草稿仍未做运行验收。
+
+直接体验见[组件操作台教程](../docs/COMPONENT_PLAYGROUND_GUIDE.md)。下面初始化仅适用于全新私有学习目录、没有待保留的配置或卷；已有栈不要重复生成密码。
 
 ```bash
 python scripts/infra-init-env.py
@@ -21,7 +22,13 @@ API 仅绑定 `127.0.0.1:8080`。没有公开部署或云资源购买；默认 C
 ## 数据与迁移
 
 MySQL 使用 `agentlab` 数据库，账户 `lab`。其余凭据由环境生成。
-迁移使用 `python -m backend.migrate`，迁移成功后才启动 API/Worker。
+迁移使用 `python -m backend.migrate`，成功后才启动 API/Worker；API 不自动建表。全新库按冻结 v1→v2 顺序初始化；合规已有 v1 只追加 `lab_records`、`lab_kafka_messages` 与固定索引，保留所有旧数据和版本 1，最后追加 2。readiness 与 Worker 要求正确 `{1,2}` 及必要结构。
+
+MySQL DDL 隐式提交，正确部分 v2 可校验后补齐；未知/冲突结构拒绝，不删库修复。重复迁移不是重复创建数据；支持该路径不代表通用降级、HA 或备份恢复。HTTP API 仍 v1，Kafka lab envelope 仍 v1。
+
+原 `.env` 与忽略的 `.env.compose.local` 均保留；本机既有栈沿用原 env-file/project/卷，云端精确提交 CI 后由协调者按[保留数据更新](../docs/OPERATIONS.md#组件操作台的保留数据更新)执行显式迁移和 UI smoke。此处不表示用户本机已部署。
+
+lab 数据对所有已登录本地账号共享；保留认证/CSRF/Origin，旧 tasks 所有权不变。Mongo `lab_documents`、Redis `lab:kv:`、Kafka `agent.lab.messages.v1` / `agent-lab-observer-v1` 与原结果/缓存/任务消息分开。不要存秘密或重要资料。
 四种数据服务使用独立 named volume。普通停止不删除数据。
 
 **破坏性重置**：`docker compose down --volumes` 会永久删除本项目所有数据库和消息数据。
@@ -30,9 +37,9 @@ MySQL 使用 `agentlab` 数据库，账户 `lab`。其余凭据由环境生成�
 
 ## 测试与证据边界
 
-提交 `102491d2` 的 [CI 39731470818](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818) 已完成真实 Compose 组件、故障恢复与可选 UI 浏览器验证。以下“编写环境未运行容器”不否定独立 CI 的实际证据，也不意味着 Windows 或 Kubernetes 已通过。
+提交 `102491d2` 的 [CI 39731470818](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39731470818) 已完成真实 Compose 组件、故障恢复与可选 UI 浏览器验证。该历史结果不覆盖新增 lab 或 v1→v2。以下“编写环境未运行容器”不否定独立 CI 的实际证据，也不意味着 Windows、Kubernetes 或用户本机新版本已通过。
 
-- 已运行：官方 Docker Compose v2.35.1 CLI 的 `config --quiet`（离线）；YAML与隔离/迁移依赖不变量验证；脚本语法检查。
+- 历史基础设施检查已运行：官方 Docker Compose v2.35.1 CLI 的 `config --quiet`（离线）；YAML与隔离/迁移依赖不变量验证；脚本语法检查。
 - 当前编写环境缺少 Docker daemon，未运行容器；CPU/内存/磁盘占用与启动时间未实测，不给虚构的最低资源承诺。
 - 自动 CI 在独立 Ubuntu runner 运行后端静态/单元测试及真实四存储的完整集成、故障恢复测试。
 - `artifacts/` 和 `test-results/` 为 CI 证据；实际完成以对应 commit 的 Actions 状态和报告为准。配置文件存在不代表运行成功。

@@ -1,0 +1,856 @@
+/* Direct component workbench: quiet surfaces, readable evidence, no simulated status. */
+.playground-home,
+.component-playground {
+  max-width: 1190px;
+  margin: 0 auto;
+}
+.playground-intro {
+  padding: 54px 0 34px;
+  max-width: 700px;
+}
+.playground-intro .intro-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.playground-intro h1 {
+  font-size: clamp(27px, 3vw, 38px);
+  letter-spacing: -1.2px;
+  font-weight: 550;
+  margin: 18px 0 13px;
+  color: #282925;
+  line-height: 1.3;
+}
+.playground-intro p {
+  font-size: 14px;
+  color: #73746d;
+}
+.playground-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.playground-card {
+  display: flex;
+  flex-direction: column;
+  padding: 26px;
+  border: 1px solid #e4e5df;
+  border-radius: 12px;
+  min-width: 0;
+  background: #fff;
+  transition:
+    background 120ms,
+    border-color 120ms;
+}
+.playground-card:hover {
+  background: #fbfbf8;
+  border-color: #bfc2b5;
+}
+.playground-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #606458;
+  font-size: 13px;
+}
+.playground-card h2 {
+  font-size: 21px;
+  font-weight: 520;
+  color: #30322c;
+  margin: 22px 0 9px;
+}
+.playground-card p {
+  font-size: 14px;
+  color: #72756b;
+}
+.playground-card small {
+  display: block;
+  font-size: 12px;
+  color: #898c81;
+  margin: 13px 0 26px;
+}
+.playground-card-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #474e3e;
+  margin-top: auto;
+  font-size: 13px;
+}
+.shared-space-note {
+  margin-top: 25px;
+  border-radius: 8px;
+  background: #f7f8f4;
+  padding: 18px 21px;
+  color: #74786b;
+}
+.shared-space-note strong {
+  font-size: 13px;
+  color: #52594a;
+  font-weight: 500;
+}
+.shared-space-note p {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.playground-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 19px;
+  font-size: 12px;
+  color: #828779;
+  padding: 24px 0;
+}
+.playground-secondary a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #646d58;
+}
+.component-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 0;
+  font-size: 12px;
+  color: #777e6d;
+}
+.component-topline a {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+}
+.component-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 0 19px;
+}
+.component-title h1 {
+  font-size: 30px;
+  font-weight: 550;
+  letter-spacing: -0.7px;
+  color: #2c3027;
+  margin: 9px 0;
+}
+.component-title p {
+  color: #78806d;
+  font-size: 14px;
+}
+.component-title > svg {
+  color: #929b86;
+  flex-shrink: 0;
+}
+.lab-scope {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #7b8272;
+  padding: 0 0 20px;
+}
+.lab-mode-warning {
+  font-size: 12px;
+  color: #86754c;
+  padding: 12px 15px;
+  border: 1px solid #e8dfc8;
+  background: #fbf9f2;
+  border-radius: 7px;
+  margin-bottom: 20px;
+  line-height: 1.8;
+}
+.component-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
+  gap: 22px;
+  align-items: start;
+}
+.component-grid > *,
+.lab-panel,
+.lab-panel > * {
+  min-width: 0;
+}
+.lab-panel {
+  border: 1px solid #e5e7df;
+  border-radius: 10px;
+  background: #fff;
+  padding: 23px;
+}
+.lab-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  color: #7f8872;
+}
+.lab-section-title h2 {
+  font-size: 16px;
+  font-weight: 520;
+  color: #404837;
+}
+.lab-editor label {
+  display: block;
+  font-size: 12px;
+  color: #626c55;
+  margin: 19px 0 8px;
+}
+.lab-editor input,
+.lab-editor textarea {
+  width: 100%;
+  border: 1px solid #dfe3d8;
+  background: #fcfdfa;
+  color: #424a37;
+  padding: 11px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  outline: none;
+}
+.lab-editor textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+.lab-editor input:focus,
+.lab-editor textarea:focus {
+  border-color: #8e9c7c;
+  box-shadow: 0 0 0 2px #939e7e14;
+}
+.lab-editor input::placeholder,
+.lab-editor textarea::placeholder {
+  color: #9ba58e;
+}
+.lab-editor .code-input {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.lab-help,
+.lab-small {
+  font-size: 11px;
+  line-height: 1.9;
+  color: #858d78;
+  margin: 9px 0 13px;
+  overflow-wrap: anywhere;
+}
+.lab-small code {
+  display: block;
+  color: #667556;
+  margin: 5px 0;
+}
+.lab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 20px;
+}
+.lab-actions .primary {
+  padding: 10px 16px;
+}
+.lab-editor form > .primary {
+  margin-top: 15px;
+}
+.lab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f8f9f5;
+  border: 1px solid #e4e8dc;
+  color: #6d7a5b;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 7px 10px;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.lab-button:hover:not(:disabled) {
+  background: #eef2e7;
+  color: #435b2b;
+  border-color: #ccd6bc;
+}
+.lab-button.danger {
+  color: #9a6657;
+  border-color: #e8d8d0;
+  background: #fcf8f5;
+}
+.lab-button.danger:hover:not(:disabled) {
+  background: #f6eae4;
+}
+.lab-empty {
+  border: 1px dashed #e2e8d8;
+  background: #fafcf7;
+  padding: 30px 22px;
+  margin: 19px 0;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #8a967a;
+}
+.lab-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #697d54;
+  background: #f4f8ed;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 12px;
+  margin-top: 17px;
+}
+.lab-notice svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.lab-error {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-top: 17px;
+}
+.lab-json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 320px;
+  overflow: auto;
+  font:
+    12px/1.9 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  color: #62734d;
+  border: 1px solid #e7eddc;
+  border-radius: 6px;
+  background: #f8fbf3;
+  padding: 14px;
+  margin: 13px 0;
+}
+.lab-response {
+  margin-top: 21px;
+  padding-top: 15px;
+  border-top: 1px solid #ebefdf;
+  font-size: 12px;
+  color: #7b8c66;
+}
+.lab-response summary {
+  cursor: pointer;
+}
+.lab-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 18px;
+}
+.lab-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+  text-align: left;
+  table-layout: fixed;
+}
+.lab-table th {
+  font-size: 11px;
+  color: #8d9b7a;
+  font-weight: 500;
+  padding: 10px 7px;
+  border-bottom: 1px solid #e5edd7;
+}
+.lab-table td {
+  padding: 16px 7px;
+  vertical-align: top;
+  border-bottom: 1px solid #eef3e5;
+  color: #738660;
+  overflow-wrap: anywhere;
+}
+.lab-table th:nth-child(1) {
+  width: 27%;
+}
+.lab-table th:nth-child(2) {
+  width: 29%;
+}
+.lab-table th:nth-child(3) {
+  width: 21%;
+}
+.lab-table th:nth-child(4) {
+  width: 23%;
+}
+.lab-table td strong {
+  display: block;
+  color: #556d3c;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.lab-table code {
+  font-size: 9px;
+  color: #9baa88;
+  display: block;
+  line-height: 1.8;
+}
+.lab-table time {
+  font-size: 10px;
+  line-height: 1.7;
+}
+.lab-value {
+  white-space: pre-wrap;
+}
+.lab-row-actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.lab-row-actions .lab-button {
+  padding: 5px 7px;
+  font-size: 10px;
+}
+.lab-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #8b9b74;
+  margin-top: 21px;
+}
+.lab-pagination > div {
+  display: flex;
+  gap: 7px;
+}
+.document-item {
+  margin-top: 18px;
+  border-top: 1px solid #e7eeda;
+  padding-top: 18px;
+}
+.document-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.document-heading > code {
+  font-size: 10px;
+  color: #86996c;
+  overflow-wrap: anywhere;
+}
+.document-item > small {
+  font-size: 10px;
+  color: #93a57b;
+}
+.lab-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2027194d;
+  padding: 20px;
+}
+.lab-dialog {
+  max-width: 430px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 14px 65px #17260833;
+  padding: 27px;
+}
+.lab-dialog h2 {
+  font-size: 18px;
+  color: #435c2d;
+  margin-bottom: 13px;
+}
+.lab-dialog p {
+  color: #819766;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.lab-dialog .lab-actions {
+  justify-content: flex-end;
+}
+.redis-result {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 25px;
+}
+.redis-key {
+  font-size: 18px;
+  color: #526a3c;
+  overflow-wrap: anywhere;
+}
+.lab-state {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 5px 8px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.lab-state.observed {
+  color: #637c42;
+  background: #eef5e6;
+}
+.lab-state.neutral {
+  color: #8b917c;
+  background: #f3f4ee;
+}
+.redis-value {
+  margin: 24px 0;
+}
+.redis-value > span {
+  font-size: 11px;
+  color: #8a9d73;
+}
+.redis-value pre,
+.consumer-payload pre {
+  font:
+    14px/1.9 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  color: #5d7944;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 280px;
+  overflow: auto;
+  background: #f7fbf1;
+  padding: 16px;
+  border-radius: 7px;
+}
+.ttl-fact {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 12px;
+  color: #8c9e74;
+}
+.ttl-fact strong {
+  font-size: 25px;
+  font-weight: 500;
+  color: #658542;
+}
+.ttl-fact small {
+  font-size: 12px;
+}
+.kafka-grid {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
+}
+.kafka-history {
+  margin-top: 23px;
+}
+.kafka-attempt {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #e8efdc;
+  font-size: 11px;
+  color: #8a9f70;
+}
+.kafka-attempt code {
+  display: block;
+  font-size: 10px;
+  margin: 7px 0;
+  overflow-wrap: anywhere;
+  color: #769654;
+}
+.kafka-attempt p,
+.kafka-attempt small {
+  font-size: 11px;
+}
+.kafka-attempt small {
+  display: block;
+  margin-top: 12px;
+}
+.kafka-selected {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 23px 0;
+}
+.kafka-selected code {
+  font-size: 11px;
+  color: #7b9860;
+  overflow-wrap: anywhere;
+}
+.kafka-observations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.kafka-observations article {
+  border: 1px solid #e4ecd7;
+  padding: 16px 13px;
+  border-radius: 8px;
+  min-width: 0;
+}
+.kafka-observations article > span {
+  display: block;
+  color: #8fa775;
+  font-size: 10px;
+  margin-bottom: 15px;
+}
+.kafka-observations article > strong {
+  margin-bottom: 12px;
+}
+.kafka-observations p {
+  font-size: 11px;
+  color: #8ba771;
+}
+.kafka-observations dl {
+  font-size: 10px;
+  margin: 19px 0 0;
+  line-height: 1.9;
+}
+.kafka-observations dt {
+  color: #9bb784;
+}
+.kafka-observations dd {
+  margin: 2px 0 12px;
+  color: #739e4d;
+  overflow-wrap: anywhere;
+}
+.consumer-payload {
+  margin-top: 22px;
+}
+.consumer-payload h3 {
+  font-size: 12px;
+  color: #6b9349;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+.consumer-payload code {
+  font-size: 11px;
+  color: #86a969;
+  overflow-wrap: anywhere;
+}
+.kafka-message-list a {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 19px 10px;
+  border-top: 1px solid #eaf1df;
+}
+.kafka-message-list a:hover,
+.kafka-message-list a.selected {
+  background: #f7fbf1;
+}
+.kafka-message-list a > div {
+  min-width: 0;
+}
+.kafka-message-list strong {
+  font-size: 13px;
+  color: #688c46;
+  font-weight: 500;
+}
+.kafka-message-list p {
+  font-size: 12px;
+  color: #8fa775;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  margin: 5px 0;
+  max-height: 68px;
+  overflow: hidden;
+}
+.kafka-message-list code {
+  font-size: 10px;
+  color: #a6b991;
+  overflow-wrap: anywhere;
+}
+.kafka-message-list a > div:last-child {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-shrink: 0;
+  max-width: 170px;
+  font-size: 10px;
+  color: #8fa575;
+}
+.lab-auth {
+  max-width: 520px;
+}
+/* Neutralize instructional chrome; green belongs only to observed success. */
+.component-playground {
+  --lab-ink: #3e4238;
+  --lab-body: #777d6e;
+  --lab-muted: #929886;
+}
+.component-playground
+  :is(
+    .lab-help,
+    .lab-small,
+    .lab-pagination,
+    .document-item > small,
+    .kafka-attempt,
+    .kafka-observations p,
+    .kafka-observations dt,
+    .kafka-message-list p
+  ) {
+  color: #7c8371;
+}
+.component-playground
+  :is(
+    .lab-table td,
+    .document-heading > code,
+    .kafka-selected code,
+    .kafka-attempt code,
+    .kafka-message-list code,
+    .kafka-message-list a > div:last-child
+  ) {
+  color: #7d8670;
+}
+.component-playground
+  :is(
+    .lab-table td strong,
+    .lab-section-title h2,
+    .lab-editor label,
+    .redis-key,
+    .lab-dialog h2,
+    .kafka-message-list strong
+  ) {
+  color: #4f5943;
+}
+@media (max-width: 1150px) {
+  .component-grid {
+    grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.15fr);
+    gap: 16px;
+  }
+  .lab-panel {
+    padding: 18px;
+  }
+  .kafka-observations {
+    grid-template-columns: 1fr;
+  }
+  .lab-table {
+    min-width: 440px;
+  }
+}
+@media (max-width: 900px) {
+  .component-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kafka-observations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .playground-cards {
+    gap: 14px;
+  }
+  .playground-card {
+    padding: 22px;
+  }
+  .playground-intro {
+    padding-top: 37px;
+  }
+}
+@media (max-width: 680px) {
+  .playground-intro {
+    padding: 31px 0 25px;
+  }
+  .playground-intro h1 {
+    font-size: 28px;
+  }
+  .playground-intro p {
+    font-size: 13px;
+  }
+  .playground-cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 13px;
+  }
+  .playground-card {
+    padding: 22px;
+  }
+  .playground-card h2 {
+    margin-top: 18px;
+    font-size: 20px;
+  }
+  .playground-card small {
+    margin-bottom: 22px;
+  }
+  .shared-space-note {
+    padding: 17px;
+  }
+  .playground-secondary {
+    gap: 13px;
+    font-size: 11px;
+  }
+  .playground-secondary > span {
+    width: 100%;
+  }
+  .component-title h1 {
+    font-size: 26px;
+  }
+  .component-title p {
+    font-size: 13px;
+  }
+  .component-topline {
+    font-size: 11px;
+    padding-top: 21px;
+  }
+  .lab-scope {
+    font-size: 11px;
+  }
+  .lab-panel {
+    padding: 18px;
+  }
+  .lab-section-title h2 {
+    font-size: 15px;
+  }
+  .lab-section-title {
+    gap: 7px;
+  }
+  .lab-editor input,
+  .lab-editor textarea {
+    font-size: 14px;
+  }
+  .lab-editor label {
+    font-size: 13px;
+  }
+  .lab-help {
+    font-size: 12px;
+  }
+  .lab-button {
+    min-height: 34px;
+  }
+  .lab-json {
+    font-size: 11px;
+  }
+  .document-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .kafka-observations {
+    grid-template-columns: 1fr;
+  }
+  .kafka-message-list a {
+    gap: 10px;
+  }
+  .kafka-message-list a > div:last-child {
+    max-width: 96px;
+  }
+  .lab-dialog {
+    padding: 23px;
+  }
+  .lab-dialog-backdrop {
+    padding: 17px;
+  }
+  .lab-dialog p {
+    font-size: 14px;
+  }
+  .lab-state {
+    font-size: 12px;
+  }
+  .kafka-observations p,
+  .kafka-observations dl,
+  .kafka-observations article > span {
+    font-size: 12px;
+  }
+  .kafka-attempt p,
+  .kafka-attempt small {
+    font-size: 12px;
+  }
+  .lab-mode-warning {
+    font-size: 12px;
+  }
+}

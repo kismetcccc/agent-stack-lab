@@ -30,6 +30,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    public requestId?: string,
   ) {
     super(message);
   }
@@ -57,9 +58,12 @@ export async function request<T>(
           : response.status === 403
             ? "没有权限访问此资源。"
             : response.status === 404
-              ? "任务不存在或不属于当前帐号。"
+              ? path.startsWith("/lab/") || path.startsWith("/api/v1/lab/")
+                ? "教学数据或实验接口不存在；请刷新列表，或确认后端已更新。"
+                : "任务不存在或不属于当前帐号。"
               : `请求失败 (${response.status})，请稍后重试。`),
       body?.error?.code,
+      body?.request_id || response.headers.get("X-Request-ID") || undefined,
     );
   return body as T;
 }

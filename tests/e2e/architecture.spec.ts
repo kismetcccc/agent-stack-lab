@@ -2,7 +2,7 @@ import {test, expect} from '@playwright/test';
 import {noPageOverflow, screenshot} from './helpers';
 
 test('anonymous architecture explains the six roles without invented runtime state', async ({page},info) => {
-  await page.goto('/');
+  await page.goto('/#overview');
   await expect(page.getByRole('heading',{level:1,name:'把后端，看清楚。'})).toBeVisible();
   await expect(page.getByRole('main')).toBeVisible();
   await expect(page.getByRole('button',{name:'退出登录'})).toHaveCount(0);
@@ -15,7 +15,7 @@ test('anonymous architecture explains the six roles without invented runtime sta
     ['Worker','首版仅支持单 Worker'], ['MongoDB','跨库原子事务'],
     ['Redis','就绪接口未探测 Redis'], ['API','返回 202 不代表'],
   ]) {
-    await page.getByRole('link',{name,exact:true}).click();
+    await page.locator('.explorer-main').getByRole('button',{name:new RegExp(name)}).first().click();
     await expect(inspector.getByRole('heading',{level:2,name,exact:true})).toBeVisible();
     await expect(inspector).toContainText(description);
     if ((page.viewportSize()?.width || 1440) <= 900) {
@@ -27,7 +27,7 @@ test('anonymous architecture explains the six roles without invented runtime sta
     }
     await noPageOverflow(page);
   }
-  await page.getByRole('link',{name:'MySQL',exact:true}).click();
+  await page.locator('.explorer-main').getByRole('button',{name:/MySQL/}).first().click();
   await screenshot(page,info,'mysql-capabilities');
   await page.getByRole('tab',{name:/查询与结果/}).click();
   await expect(page.getByRole('tab',{name:/查询与结果/})).toHaveAttribute('aria-selected','true');
@@ -37,14 +37,14 @@ test('anonymous architecture explains the six roles without invented runtime sta
 });
 
 test('keyboard navigation and expandable reliability explanations are accessible', async ({page}) => {
-  await page.goto('/');
+  await page.goto('/#overview');
   const mysql = page.getByRole('button',{name:/MySQL/}).first();
   await mysql.focus();
   await expect(mysql).toBeFocused();
   const outline = await mysql.evaluate(el => getComputedStyle(el).outlineStyle);
   expect(outline).not.toBe('none');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/#mysql/);
+  await expect(page).toHaveURL(/#architecture-mysql/);
   await expect(page.getByTestId('component-detail')).toContainText('记录任务的事实');
   const toggle = page.getByRole('button',{name:/展开可靠性细节/});
   await toggle.focus();

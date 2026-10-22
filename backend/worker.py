@@ -8,6 +8,9 @@ import time
 from pathlib import Path
 
 from backend.faults import pause_at
+from backend.lab_schema import LAB_TOPIC
+from backend.lab_worker import consume_lab_messages
+from backend.migrate import assert_current_schema
 from backend.runtime import Runtime
 
 HEARTBEAT = Path("/tmp/worker-heartbeat")
@@ -43,7 +46,8 @@ def main():
         raise SystemExit(
             "Independent Worker needs real services; test/demo uses in-process explicit tick only"
         )
-    runtime.bus.ensure_topics([runtime.settings.topic, runtime.settings.dlq_topic])
+    assert_current_schema(runtime.engine)
+    runtime.bus.ensure_topics([runtime.settings.topic, runtime.settings.dlq_topic, LAB_TOPIC])
     from confluent_kafka import Consumer
 
     consumer = Consumer(
@@ -61,6 +65,8 @@ def main():
     thread.start()
     relay_thread = threading.Thread(target=relay, args=(runtime, stop), daemon=True)
     relay_thread.start()
+    lab_thread = threading.Thread(target=consume_lab_messages, args=(runtime, stop), daemon=True)
+    lab_thread.start()
     try:
         while True:
             message = consumer.poll(0.5)
@@ -81,6 +87,7 @@ def main():
         consumer.close()
         thread.join(timeout=35)
         relay_thread.join(timeout=15)
+        lab_thread.join(timeout=10)
 
 
 if __name__ == "__main__":

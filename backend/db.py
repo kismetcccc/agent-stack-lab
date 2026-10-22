@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Double, Index, Integer, String, Text, UniqueConstraint, create_engine
+from sqlalchemy import BigInteger, Double, Index, Integer, String, Text, UniqueConstraint, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -110,3 +110,34 @@ class TaskEvent(Base):
     kind: Mapped[str] = mapped_column(String(40))
     content: Mapped[str] = mapped_column(String(256))
     created_at: Mapped[float] = mapped_column(Double, default=now)
+
+
+class LabRecord(Base):
+    """Shared local teaching data, deliberately independent of task ownership."""
+
+    __tablename__ = "lab_records"
+    __table_args__ = (Index("ix_lab_records_created", "created_at", "id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    value: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[float] = mapped_column(Double, default=now)
+    updated_at: Mapped[float] = mapped_column(Double, default=now)
+
+
+class LabKafkaMessage(Base):
+    """A send registration and two independent observations, NOT a task/outbox."""
+
+    __tablename__ = "lab_kafka_messages"
+    __table_args__ = (Index("ix_lab_kafka_messages_created", "created_at", "id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    key: Mapped[str] = mapped_column(String(64))
+    value: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[float] = mapped_column(Double, default=now)
+    producer_acknowledged_at: Mapped[float | None] = mapped_column(Double, nullable=True)
+    producer_partition: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    producer_offset: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    consumer_received_at: Mapped[float | None] = mapped_column(Double, nullable=True)
+    consumer_partition: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consumer_offset: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    consumer_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    consumer_value: Mapped[str | None] = mapped_column(Text, nullable=True)

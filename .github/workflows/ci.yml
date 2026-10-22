@@ -24,7 +24,7 @@ jobs:
       - run: uv sync --frozen
       - name: Backend lint and unit tests (no infrastructure mocks counted as integration)
         run: |
-          uv run ruff check backend tests/judge scripts/infra-init-env.py scripts/test-http-smoke.py scripts/test-build-context.py
+          uv run ruff check backend tests/judge tests/integration scripts/infra-init-env.py scripts/test-http-smoke.py scripts/test-build-context.py
           uv run pytest backend/tests tests/judge/test_capture.py -m 'not integration' --junitxml=artifacts/unit.xml
       - name: Validate manifests without connecting to a daemon
         run: |
@@ -54,8 +54,26 @@ jobs:
         run: python scripts/test-build-context.py
       - name: Build actual application containers
         run: docker compose build
-      - name: Start backend-only core (frontend and gateway not required)
+      - name: Start only isolated CI stores before any migration or application process
+        run: |
+          mkdir -p test-results
+          chmod 777 test-results
+          docker compose -f compose.yaml -f compose.test.yaml build integration
+          docker compose up -d --no-deps --wait --wait-timeout 300 mysql redis mongo kafka
+      - name: Prove frozen v1 upgrade, legacy-row preservation, repeat migration and version guards
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml run --rm --no-deps \
+            -e CI=true -e LAB_CI_EPHEMERAL_SCHEMA=1 integration -q \
+            /tests/integration/test_schema_upgrade.py::test_frozen_v1_upgrade_repeat_and_future_version_guard \
+            --junitxml=/reports/schema-upgrade.xml
+      - name: Start backend-only core on upgraded v2 schema (frontend and gateway not required)
         run: docker compose up -d --wait --wait-timeout 300
+      - name: Verify legacy auth and task ownership survived real API and Worker startup
+        run: |
+          docker compose -f compose.yaml -f compose.test.yaml run --rm --no-deps \
+            -e CI=true -e LAB_CI_EPHEMERAL_SCHEMA=1 integration -q \
+            /tests/integration/test_schema_upgrade.py::test_upgraded_legacy_password_session_task_and_ownership_after_start \
+            --junitxml=/reports/schema-upgrade-http.xml
       - name: Execute documented standard-library HTTP main-function smoke
         env:
           TEST_BASE_URL: http://localhost:8080
@@ -93,6 +111,8 @@ jobs:
             test-results/crash-windows.json
             !test-results/outage-state.json
             !test-results/**/outage-state.json
+            !test-results/playground-state.json
+            !test-results/**/playground-state.json
             !test-results/crash-state.json
             !test-results/**/crash-state.json
           if-no-files-found: warn
@@ -158,6 +178,8 @@ jobs:
             test-results/browser-artifacts/**/*.png
             test-results/browser-artifacts/**/judge-observations.json
             !test-results/**/outage-state.json
+            !test-results/playground-state.json
+            !test-results/**/playground-state.json
             !test-results/crash-state.json
             !test-results/**/crash-state.json
             !test-results/**/storageState.json

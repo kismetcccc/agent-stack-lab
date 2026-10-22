@@ -7,11 +7,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException
 
 from backend.auth import Auth
+from backend.lab_api import lab_router
+from backend.migrate import assert_current_schema
 from backend.runtime import Runtime
 from backend.service import ServiceError, uid
 
@@ -160,8 +161,7 @@ def create_app(runtime=None):
     def ready():
         dependencies = {}
         try:
-            with runtime.engine.connect() as connection:
-                connection.execute(text("SELECT version FROM schema_version WHERE version=1")).scalar_one()
+            assert_current_schema(runtime.engine)
             dependencies[runtime.engine.dialect.name] = "up"
         except Exception:
             dependencies[runtime.engine.dialect.name] = "down"
@@ -257,6 +257,7 @@ def create_app(runtime=None):
     def results(task_id: str, request: Request):
         return runtime.tasks.document(auth.identity(request)["id"], task_id)
 
+    app.include_router(lab_router(runtime, auth))
     return app
 
 

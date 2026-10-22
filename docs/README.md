@@ -1,37 +1,35 @@
-# 文档导航：从一次请求理解后端
+# 文档导航：先直接操作，再按需深入
 
-本项目是教学用任务平台，不是生产就绪服务。先掌握一条真实调用链，再研究故障与扩展；不用同时阅读所有文件。
+先在组件操作台保存一条记录、观察一个键过期、修改一份 JSON、收取一条 Kafka 消息。**无需先创建任务或理解整条 Agent 链路。** 这是个人本地共享教学工具，不是生产平台。
+
+本轮实施状态见 [组件操作台验收记录](COMPONENT_PLAYGROUND_REPORT.md)，旧版结果与新功能验收分开记录。
 
 ## 建议阅读顺序
 
-| 顺序 | 文档 | 读完应能回答 |
+| 顺序 | 文档 | 读完能做什么 |
 |---|---|---|
-| 1 | [项目入口](../README.md) | 项目解决什么问题，如何启动和安全停止？ |
-| 2 | [开发任务清单](DEVELOPMENT_PLAN.md) | 当前已验证什么，下一轮做什么，怎样才算完成？ |
-| 3 | [架构与调用链](ARCHITECTURE.md) | 请求怎样经过 API、MySQL、Kafka、Worker、MongoDB 和 Redis？ |
-| 4 | [模块功能契约](MODULE_CONTRACTS.md) | 每个模块负责什么、不负责什么，出错后谁处理？ |
-| 5 | [学习路线](LEARNING_PATH.md) 与 [组件地图](COMPONENTS.md) | 应先看哪些代码，每个组件为什么需要？ |
-| 6 | [API 契约](API_CONTRACT.md) | 注册、会话、CSRF、幂等和资源权限怎样配合？ |
-| 7 | [故障实验](FAILURE_LABS.md) | 停掉缓存、消息系统或结果库后，哪些行为应该改变？ |
-| 8 | [Agent 逐步导读](AGENT_WALKTHROUGH.md) | 控制器、工具、观察结果与后台生命周期有何不同？ |
-| 9 | [外部学习资料](OPEN_SOURCE_RESOURCES.md) | 去哪里读上游原文，如何对应本仓库练习？ |
+| 1 | [项目入口](../README.md)与[界面启动](UI_GUIDE.md) | 保留配置，打开 localhost:8081 |
+| 2 | [组件操作台逐步教程](COMPONENT_PLAYGROUND_GUIDE.md) | 点按钮完成四个独立小实验，辨别真实证据 |
+| 3 | [API 契约](API_CONTRACT.md) | 把输入、输出、错误与 `/api/v1/lab` 对上 |
+| 4 | [模块功能契约](MODULE_CONTRACTS.md) | 理解存储边界、失败交接与实现入口 |
+| 5 | [配置说明](CONFIGURATION.md)与[运维说明](OPERATIONS.md) | 分清配置来源、迁移和非破坏性恢复 |
+| 6 | [架构与调用链](ARCHITECTURE.md)、[Agent 导读](AGENT_WALKTHROUGH.md) | 可选：再研究旧任务、Outbox/Inbox 和 Agent |
+| 7 | [学习路线](LEARNING_PATH.md)、[组件地图](COMPONENTS.md)、[故障实验](FAILURE_LABS.md) | 可选：在独立合成环境研究后端可靠性 |
+| 8 | [官方与开源学习资料](OPEN_SOURCE_RESOURCES.md) | 对照上游原文继续学，不把引用当实现证据 |
 
 ## 按任务查找
 
-- 改后端之前：[Agent.md](../Agent.md)、[API 契约](API_CONTRACT.md)、[架构决策 ADR](adr/001-modular-monolith.md)。
-- 配置与凭据：[配置说明](CONFIGURATION.md)。默认不启用真实模型，已有数据卷不能靠随机补密码修复。
-- 运行与排障：[Compose 环境](../infra/README.md)、[故障实验](FAILURE_LABS.md)、[运维与恢复边界](OPERATIONS.md)。备份恢复步骤尚未实跑，不能当作灾备能力。
-- 参与贡献：[贡献指南](../CONTRIBUTING.md)、[安全报告](../SECURITY.md)、[第三方许可与来源](THIRD_PARTY_NOTICES.md)、[发布核对表](RELEASE_CHECKLIST.md)。项目许可证仍待维护者选择。
-- 打开可选前端：[学习界面指南](UI_GUIDE.md)。界面显示的是后端证据，不是另一套任务状态。
-- 理解模型边界：[单 Agent 契约](SINGLE_AGENT.md)。默认脚本模式不是语言理解；真实模型连通性不等于完整 Agent 链路验收。
-- 查看已执行证据：[单 Agent 验收](AGENT_TEST_REPORT.md)、[界面验收](UI_TEST_REPORT.md)、[当前开发任务状态](DEVELOPMENT_PLAN.md)。历史报告只证明其标明的提交，不自动代表后续版本。
-- 了解部署层：[Kubernetes 草稿](../infra/k8s/README.md)。目前未做真实集群验收，也不是默认启动依赖。
+- **本轮范围与状态**：[冻结计划](COMPONENT_PLAYGROUND_PLAN.md)，首发 `0f306a777655fffa1077703c7321f004a6a14921`。它保留计划发布时的快照；是否验收必须看对应提交和实际结果，不把计划文案当运行状态。
+- **数据边界**：新 lab 数据本机共享；仍需登录/CSRF/Origin；旧任务所有权不变。HTTP API v1、SQL schema v2、Kafka envelope v1 是三个独立版本。
+- **改后端之前**：[Agent.md](../Agent.md)、[API 契约](API_CONTRACT.md)、[架构决策 ADR](adr/001-modular-monolith.md)。
+- **配置与凭据**：[配置说明](CONFIGURATION.md)。保留 `.env` 与忽略的 `.env.compose.local`，不新增模型 Key；已有卷不能靠随机补密码修复。
+- **已有本机栈更新**：[保留数据的升级步骤](OPERATIONS.md#组件操作台的保留数据更新)、[Compose 环境](../infra/README.md)。云端 CI 与本机验收分开；本机更新仍待协调者执行和核验。
+- **历史证据**：[学习型 v1 清单](DEVELOPMENT_PLAN.md)、[开发报告](DEVELOPMENT_REPORT.md)、[单 Agent 验收](AGENT_TEST_REPORT.md)、[界面验收](UI_TEST_REPORT.md)。保留其原提交与测试数，不充当新 lab 验收。
+- **模型与部署限制**：[单 Agent 契约](SINGLE_AGENT.md)、[Kubernetes 草稿](../infra/k8s/README.md)。独立 provider 连通性不是 live 全栈验收；Kubernetes 不是默认依赖。
+- **参与贡献**：[贡献指南](../CONTRIBUTING.md)、[安全报告](../SECURITY.md)、[第三方许可与来源](THIRD_PARTY_NOTICES.md)、[发布核对表](RELEASE_CHECKLIST.md)。
 
-## 阅读时区分四种状态
+## 阅读证据时分清层级
 
-1. **有代码**：能找到实现，不代表行为已验证。
-2. **单元或静态检查通过**：证明部分契约，不代表真实组件连接成功。
-3. **真实集成通过**：以明确提交和 CI 结果为证，仍不等于生产高可用或全面安全认证。
-4. **计划/草稿**：不能拿来宣称系统已经具备该能力。
+有代码 ≠ 离线测试通过 ≠ 真实组件通过 ≠ 浏览器通过 ≠ 用户本机已更新。报告应给出提交、实际命令、真实依赖或替身，以及通过/失败/未运行；旧版本绿色结果不自动覆盖新增功能。
 
-文档中的命令要结合各自前提执行。不得把 `.env`、Cookie、CSRF token、连接密码、模型密钥或完整容器配置贴进公开 Issue；普通停止不删除数据卷。外部资料只作有出处的导读和链接汇总，上游许可与本项目许可互不替代。
+不公开 `.env`、cookie、CSRF、连接密码、模型密钥或完整容器配置；共享 lab 不存秘密。普通停止不删除卷，删除教学数据也只确认单条。备份恢复手册仍不是已经验收的灾备能力。

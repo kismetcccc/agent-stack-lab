@@ -265,9 +265,10 @@ def test_worker_inbox_hook_is_after_receive_before_commit_with_real_message_meta
     consumer.poll.side_effect = [message, StopProbe()]
     consumer.commit.side_effect = lambda **kwargs: order.append(("commit", kwargs))
     settings = SimpleNamespace(mode="production", topic="agent.tasks", dlq_topic="dlq", kafka_servers="none")
-    runtime = SimpleNamespace(settings=settings, bus=Mock(), tasks=Mock())
+    runtime = SimpleNamespace(settings=settings, bus=Mock(), tasks=Mock(), engine=object())
     runtime.tasks.receive.side_effect = lambda value: order.append(("receive", value))
     monkeypatch.setattr(worker, "Runtime", lambda: runtime)
+    monkeypatch.setattr(worker, "assert_current_schema", Mock())
     monkeypatch.setattr(worker, "HEARTBEAT", tmp_path / "heartbeat")
     monkeypatch.setattr(worker.threading, "Thread", Mock())
     monkeypatch.setattr(worker, "pause_at", lambda *args, **kwargs: order.append(("hook", args, kwargs)))

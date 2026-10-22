@@ -89,7 +89,7 @@ describe("component teaching explorer", () => {
   });
 });
 describe("anonymous task workspace", () => {
-  it("keeps education public and requires login only for real tasks", async () => {
+  it("keeps the direct playground public and requires login for component data", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) =>
@@ -106,7 +106,7 @@ describe("anonymous task workspace", () => {
     );
     render(<App />);
     expect(
-      screen.getByRole("heading", { name: "把后端，看清楚。" }),
+      screen.getByRole("heading", { name: "选一个组件，动手试一次。" }),
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByText(/后端：demo/)).toBeInTheDocument(),

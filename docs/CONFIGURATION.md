@@ -12,6 +12,12 @@ Compose 的变量替换、优先级与注释语法可参见 [官方说明](https
 
 `.env.example` 是字段示例，里面的 `replace-…` 不是安全密码；初始化器把任何非空占位符都视为已有值，**不会替换它们**。首次配置优先让初始化器创建文件，再按需编辑非秘密配置。默认 deterministic 教学链路不需要模型 Key。
 
+### 已有本机栈的 `.env.compose.local`
+
+本轮操作台**不新增环境变量、凭据、模型 Key 或外部服务**。已有 `.env` 中的模型配置保持不动；已采用独立 `.env.compose.local` 的本机栈继续通过 `--env-file .env.compose.local` 显式读取，文件受现有 `.env.*` 忽略规则保护，不提交、不输出、不由云端复制覆盖。初始化器的 `--path` 只接受名为 `.env` 的文件，不要拿它重建 `.env.compose.local` 或旋转已有数据库密码。
+
+同一启动/迁移/停止流程必须使用相同 env-file、Compose 文件、project 和已有卷；换 project 可能得到新卷，不能把“空库启动成功”当旧数据升级成功。授权更新流程见[运维说明](OPERATIONS.md#组件操作台的保留数据更新)。本机更新仍待云端精确提交 CI 之后单独验收。
+
 ## 2. 开发凭据安全初始化
 
 ### 首次创建
@@ -100,7 +106,7 @@ python scripts/infra-init-env.py --path ./private-sandbox/.env --fill-missing
 | `DATABASE_URL` | `mysql+pymysql://lab:change-me@localhost:3306/agentlab`（占位，不是可用安全配置） | 根据 `MYSQL_PASSWORD` 拼出 `mysql:3306/agentlab` URL | 是，含凭据 | `Settings` → SQLAlchemy；API/Worker/迁移重启。SQLite 只允许显式 `test/demo` |
 | `MONGO_URL` | `mongodb://localhost:27017` | 根据 `MONGO_PASSWORD` 拼出 Mongo root URL，`authSource=admin` | 通常是 | `Settings` → Mongo 适配器；API/Worker 重启 |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | 固定 `kafka:9092` | 否，地址可能私密 | `Settings` → Kafka producer/consumer；API/Worker 重启 |
-| `REDIS_URL` | 空字符串，禁用缓存 | 根据 `REDIS_PASSWORD` 拼出 `redis:6379/0` URL | 通常是 | `Settings` → `ProgressCache`；API/Worker 重启。禁用/不可用不改变 SQL 权威 |
+| `REDIS_URL` | 空字符串；禁用原任务缓存，lab Redis 不可用 | 根据 `REDIS_PASSWORD` 拼出 `redis:6379/0` URL | 通常是 | `Settings` → `ProgressCache` 及独立 lab Redis 操作；API/Worker 重启。原任务缓存可降级；lab 操作返回 `redis_unavailable`，不伪造空值 |
 | `APP_ORIGIN` | `http://localhost:8080` | 见上一表 | 否 | `Settings` → API Origin 校验；重启 API |
 | `COOKIE_SECURE` | `false`；仅大小写不敏感的 `true` 为真 | 不传入，使用默认 | 否 | `Settings` → API session cookie；重启 API。HTTPS 部署须另行评审，不是在 HTTP 教学环境盲开此值 |
 | `MODEL_MODE` | `deterministic`；仅 `deterministic/live` | **固定 `deterministic`** | 否 | API 创建任务时持久化模式；Worker 执行前校验任务模式与自身模式一致。两侧必须协调重启，不能把已有队列任务悄悄转换模式 |
@@ -129,12 +135,16 @@ python scripts/infra-init-env.py --path ./private-sandbox/.env --fill-missing
 |---|---|
 | `backend/auth.py`、`backend/app.py` | Session 24 小时，cookie 名 `lab_session`，HttpOnly、SameSite=strict；无环境变量开启 MFA、找回或认证限流 |
 | `backend/adapters.py` | Redis 进度/结果 TTL 300 秒；Redis 连接/读超时 1 秒；不是限流功能 |
-| `backend/worker.py` | 消费组 `agent-executors-v1`，手动提交 offset，`earliest`；单 relay/Worker 是当前支持边界 |
+| `backend/worker.py` | 原任务消费组 `agent-executors-v1`，手动提交 offset，`earliest`；单 relay/Worker 是当前支持边界；新增独立 lab consumer 不共用任务组 |
+| `backend/lab_schema.py`、`backend/lab_adapters.py` | 固定 topic `agent.lab.messages.v1`、group `agent-lab-observer-v1`、Redis 前缀 `lab:kv:`、Mongo `agent_lab.lab_documents`；不是用户环境变量或 API 参数 |
+| `backend/migrate.py` | schema 目标 v2，保留版本 1 并追加 2，新增 `lab_records`/`lab_kafka_messages`；与 HTTP API v1、Kafka envelope v1 分开 |
 | `backend/agent.py`、`backend/agent_provider.py` | 上述决策/工具/时间预算；provider 30 秒客户端超时且不跟随重定向；更多 DTO/字节预算见 [单 Agent 契约](SINGLE_AGENT.md) |
 | `compose.ui.yaml` | 可选网关主机 `127.0.0.1:8081`，API Origin 固定为 `http://localhost:8081`；`LAB_PORT` 不控制网关端口。未加载 overlay 时不启动 UI |
 | `compose.test.yaml` / `tests/integration` | `TEST_BASE_URL` 是测试客户端地址，默认测试为 `http://localhost:8080`，容器测试使用 `http://api:8000`；不是后端监听地址 |
 | `backend/faults.py` / `compose.fault-test.yaml` | `LAB_TEST_HOOKS`、`LAB_TEST_PAUSE_AT`、`LAB_TEST_TASK_ID`、`LAB_TEST_RUN_ID` 只属于显式隔离故障实验；正常启动不加载该 overlay。实现/真实验收状态及租约配置以 [故障实验](FAILURE_LABS.md) 为准，不能拿实验租约用于日常 Agent |
 | `tests/judge/capture.py` | `JUDGE_COMMIT` 只标记已有证据采集的提交来源，不启用真实模型、不代表语义质量评分 |
+
+lab 全部复用原账号登录，但教学数据本机共享，不新增 owner/tenant 配置或配额。接口预算（TTL 1..3600 秒、值 4096 UTF-8 字节、Mongo JSON 16 KiB/6 层/200 节点等）是固定校验，详见 [API 契约](API_CONTRACT.md)，不是可通过 `.env` 放宽的任意命令入口。
 
 ## 6. 验证与排错顺序
 

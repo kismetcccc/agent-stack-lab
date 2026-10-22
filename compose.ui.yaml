@@ -1,0 +1,16 @@
+# Opt-in UI only: docker compose -f compose.yaml -f compose.ui.yaml up -d --build --wait
+# Backend-only compose.yaml remains unchanged. This overlay selects one strict UI Origin.
+services:
+  api:
+    environment:
+      APP_ORIGIN: http://localhost:8081
+  gateway:
+    image: agent-stack-lab-gateway:local
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports: ['127.0.0.1:8081:8080']
+    depends_on:
+      api: {condition: service_healthy}
+    networks: [lab]
+    restart: unless-stopped

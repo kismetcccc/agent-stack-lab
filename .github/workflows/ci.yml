@@ -75,3 +75,64 @@ jobs:
       - name: Destroy CI-only ephemeral data
         if: always()
         run: docker compose down --volumes --remove-orphans
+  frontend-browser:
+    # Separate runner and job: UI verification never replaces backend-only tests above.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Frontend clean install, typecheck and production build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Generate private credentials and validate opt-in UI overlay
+        run: |
+          python scripts/infra-init-env.py
+          docker compose -f compose.yaml -f compose.ui.yaml config --quiet
+      - name: Build and start real backend with same-origin UI gateway
+        run: |
+          docker compose -f compose.yaml -f compose.ui.yaml build
+          docker compose -f compose.yaml -f compose.ui.yaml up -d --wait --wait-timeout 300
+      - name: Real Chromium desktop and mobile end-to-end tests
+        env:
+          TEST_BASE_URL: http://localhost:8081
+          CI: 'true'
+        run: bash scripts/test-e2e.sh
+      - name: Capture redacted UI-stack diagnostics
+        if: always()
+        run: |
+          mkdir -p artifacts/ui
+          docker compose -f compose.yaml -f compose.ui.yaml ps --all > artifacts/ui/services.txt
+          docker compose -f compose.yaml -f compose.ui.yaml logs --no-color --tail=200 2>&1 | python scripts/infra-redact.py > artifacts/ui/services.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-browser-evidence
+          # Never upload traces, storageState, cookies, session/outage JSON, .env or an entire test directory.
+          path: |
+            artifacts/ui/services.txt
+            artifacts/ui/services.log
+            test-results/browser.xml
+            test-results/browser-artifacts/**/*.png
+            !test-results/**/outage-state.json
+            !test-results/**/storageState.json
+            !test-results/**/*.zip
+          if-no-files-found: warn
+      - name: Destroy CI-only UI-stack data
+        if: always()
+        run: docker compose -f compose.yaml -f compose.ui.yaml down --volumes --remove-orphans

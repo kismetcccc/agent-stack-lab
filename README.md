@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **已验证**：提交 `cc17a052` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39715365618) 通过 20 项单元/API 测试、9 项真实组件集成测试和停机恢复实验。详见 [验收报告](docs/TEST_REPORT.md)。MySQL、Kafka、MongoDB、Redis 均真实运行；模型仍为 `deterministic`，不产生真实模型调用。前端和 Kubernetes 延期，项目不是生产就绪平台，不应直接暴露公网。
+> **已验证**：提交 `cc17a052` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39715365618) 通过 20 项单元/API 测试、9 项真实组件集成测试和停机恢复实验。详见 [验收报告](docs/TEST_REPORT.md)。MySQL、Kafka、MongoDB、Redis 均真实运行；模型仍为 `deterministic`，不产生真实模型调用。学习型前端已加入独立验收流程，Kubernetes 继续延期；项目不是生产就绪平台，不应直接暴露公网。
 
 ## 不熟悉这些组件？先看一个小例子
 
@@ -29,9 +29,17 @@
 6. [API 契约](docs/API_CONTRACT.md)：前后端接口的唯一详细定义。
 7. [ADR](docs/adr/001-modular-monolith.md)：记录重要选择和代价。
 
-## 当前聚焦：先把后端理清楚
+## 当前聚焦：用可选界面理解后端
 
-**当前只做 API、MySQL、Kafka、MongoDB、Redis 的后端闭环。前端和新增外围组件暂停。** Kubernetes 仅保留后续学习章节，不是当前验收目标。前端与部署扩展草稿未作为本轮仓库交付。
+**后端闭环已完成首轮验收；现在加入可选学习前端，帮助理解 API、MySQL、Kafka、MongoDB、Redis。** Kubernetes 和新增外围组件继续延期。前端不改变任务状态的权威来源，也不伪造消息流或组件在线状态。
+
+界面启动、功能边界和学习顺序见 [学习界面指南](docs/UI_GUIDE.md)。在已创建本地 `.env` 的前提下：
+
+```bash
+docker compose -f compose.yaml -f compose.ui.yaml up -d --build --wait --wait-timeout 300
+```
+
+打开 **http://localhost:8081/**。默认后端单独运行仍使用8080，二者的Origin配置区别见指南。
 
 ```text
 curl / HTTP客户端 → API → MySQL（任务状态的账本）
@@ -70,7 +78,7 @@ docker compose down
 
 **`docker compose down -v` 会删除数据卷，不是普通停止。** 修改.env中的密码不会自动更新已初始化数据库。不要将完整 `docker compose config` 输出上传到公共日志，因为它可能展开密码。
 
-外围组件、前端和 Kind 本轮不启动；后续再独立核对启动说明与资源预算。
+上述单文件命令只启动后端；学习前端须显式使用 UI 覆盖配置。外围组件和 Kind 本轮不启动。
 
 ## 两条互相独立的“真实”维度
 
@@ -85,7 +93,7 @@ docker compose down
 
 ## 完成度与限制
 
-首轮交付包含接口、会话/CSRF、任务幂等、状态机、事务 Outbox/Inbox、租约重试和四组件适配器；前端与部署扩展本轮暂停。**代码存在、静态检查通过、真实集成通过是三个不同层级**，最终验收报告需给出所测 commit 和检查结果。
+首轮交付包含接口、会话/CSRF、任务幂等、状态机、事务 Outbox/Inbox、租约重试和四组件适配器；前端另有独立构建和浏览器验收，部署扩展本轮继续暂停。**代码存在、静态检查通过、真实集成通过是三个不同层级**，最终验收报告需给出所测 commit 和检查结果。
 
 当前重点限制：单 relay/worker 起步；认证没有邮件验证、找回、MFA；模型仅做受限文本处理；尚无完整工具规划、RAG、对象存储、搜索或持久化定时调度；日志/指标/trace 分别验收；没有高可用和灾备承诺。不要将开发模式 `production` 字样理解为安全认证。
 

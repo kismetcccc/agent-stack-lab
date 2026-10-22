@@ -4,7 +4,7 @@
 
 最终执行结果见 [验收报告](TEST_REPORT.md)：被测提交 `cc17a052a2c3ad5cd36d79a5d1500704185c7fe2` 的 [CI 39715365618](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39715365618) 已通过。下表明确区分开发环境检查与真实 CI。
 
-用户最新指示：**先理清并验收后端**。浏览器 UI 和 Kubernetes 当前延期；已有草稿保留，不作为本轮完成条件，也不宣称已通过。
+本报告首先记录**后端阶段**。用户随后恢复学习型前端；其新增验收范围见 [UI 测试计划](UI_TEST_PLAN.md)，不能沿用后端结果宣称浏览器已通过。Kubernetes 仍延期。
 
 状态词：**已通过** = 实际执行且退出成功；**失败** = 实际断言不符；**未运行** = 尚无执行证据；**环境阻塞** = 缺少运行前提。测试代码存在或 collection 成功都不等于真实链路通过。
 
@@ -14,7 +14,7 @@
 | Python 语法 / shell 语法 | `python -m compileall` / `bash -n scripts/test-integration.sh` | 已通过（仅语法） |
 | MySQL/Kafka/MongoDB/Redis 真集成 | GitHub Actions 真实 Compose 环境，7 项链路/API + 2 项恢复测试 | 已通过 |
 | Compose 停机恢复与日志扫描 | CI 实际暂停并恢复 Redis/Kafka/MongoDB、替换 Worker；日志模式扫描 | 已通过（扫描不是通用安全证明） |
-| 浏览器桌面/移动端 | `tests/e2e` 草稿保留；依赖/浏览器未验收，最新范围延期 | 未运行 / 延期 |
+| 浏览器桌面/移动端 | 恢复为独立验收阶段；本地匿名检查与真实服务端到端分别记录 | 见 UI 测试计划，不计入本后端结果 |
 | Kind 部署与业务链路 | 由基础设施脚本负责，最新范围延期 | 未运行 / 延期 |
 | live 模型 | 等待用户安全配置供应商 API，不在公开文件填密钥 | 未运行 |
 

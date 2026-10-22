@@ -1,6 +1,6 @@
 # 冻结的首轮 API 契约
 
-内部端口 8000，网关端口 8080；同源浏览器 cookie；所有 task 路径为 `/api/v1/tasks`，兼容 Agent.md 的 DTO。
+内部 API 端口 8000，默认宿主后端端口 8080，可选学习界面网关 8081；浏览器使用同源 cookie。UI 覆盖配置严格使用 APP_ORIGIN=http://localhost:8081。所有 task 路径为 `/api/v1/tasks`，兼容 Agent.md 的 DTO。
 
 - POST `/api/v1/auth/register` 或 `/api/v1/auth/login`: `{username,password}`；返回 `{user:{id,username},csrf_token}` 并设置 HttpOnly `lab_session` cookie。
 - GET `/api/v1/auth/me`: `{user:{id,username},csrf_token}`；会话失效 401。

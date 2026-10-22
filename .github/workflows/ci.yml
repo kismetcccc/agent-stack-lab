@@ -77,7 +77,8 @@ jobs:
         run: docker compose down --volumes --remove-orphans
   frontend-browser:
     # Separate runner and job: UI verification never replaces backend-only tests above.
-    runs-on: ubuntu-24.04
+    # Supported Jammy runner keeps Chromium's sandbox enabled without changing host security policy.
+    runs-on: ubuntu-22.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

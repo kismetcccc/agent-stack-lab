@@ -20,7 +20,8 @@
 
 - 改后端之前：[Agent.md](../Agent.md)、[API 契约](API_CONTRACT.md)、[架构决策 ADR](adr/001-modular-monolith.md)。
 - 配置与凭据：[配置说明](CONFIGURATION.md)。默认不启用真实模型，已有数据卷不能靠随机补密码修复。
-- 运行后端：[Compose 环境](../infra/README.md)、[故障实验](FAILURE_LABS.md)。
+- 运行与排障：[Compose 环境](../infra/README.md)、[故障实验](FAILURE_LABS.md)、[运维与恢复边界](OPERATIONS.md)。备份恢复步骤尚未实跑，不能当作灾备能力。
+- 参与贡献：[贡献指南](../CONTRIBUTING.md)、[安全报告](../SECURITY.md)、[第三方许可与来源](THIRD_PARTY_NOTICES.md)、[发布核对表](RELEASE_CHECKLIST.md)。项目许可证仍待维护者选择。
 - 打开可选前端：[学习界面指南](UI_GUIDE.md)。界面显示的是后端证据，不是另一套任务状态。
 - 理解模型边界：[单 Agent 契约](SINGLE_AGENT.md)。默认脚本模式不是语言理解；真实模型连通性不等于完整 Agent 链路验收。
 - 查看已执行证据：[单 Agent 验收](AGENT_TEST_REPORT.md)、[界面验收](UI_TEST_REPORT.md)、[当前开发任务状态](DEVELOPMENT_PLAN.md)。历史报告只证明其标明的提交，不自动代表后续版本。

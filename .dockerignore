@@ -1,7 +1,53 @@
 .git
+# Git ignore rules do not protect a Docker build context.
+.secrets
+**/.secrets
 .env
 .env.*
+**/.env
+**/.env.*
+# Only the public root template belongs in the context.
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa
+**/id_dsa
+**/id_ecdsa
+**/id_ed25519
+# Local database/backup directories, not source or migration SQL.
+data
+volumes
+# SQLite data and its known sidecars, at any depth (not migration SQL).
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+*.db-wal
+*.db-shm
+*.db-journal
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/*.sqlite-journal
+**/*.sqlite3-wal
+**/*.sqlite3-shm
+**/*.sqlite3-journal
+**/*.db-wal
+**/*.db-shm
+**/*.db-journal
 **/.venv
 **/node_modules
 **/dist

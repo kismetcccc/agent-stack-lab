@@ -346,39 +346,7 @@ def main():
         return
     state = json.loads(STATE.read_text())
     task_id = state["task_id"]
-    if action == "hook-evidence":
-        point = os.environ["TEST_HOOK_POINT"]
-        task = sql(task_id)
-        engine = create_engine(os.environ["DATABASE_URL"])
-        with engine.connect() as conn:
-            outbox = (
-                conn.execute(
-                    text("SELECT id,sent_at FROM outbox WHERE task_id=:id AND event_type='task.created'"),
-                    {"id": task_id},
-                )
-                .mappings()
-                .one()
-            )
-            if point == "after_outbox_publish":
-                assert outbox["sent_at"] is None and task["status"] == "pending"
-            elif point == "after_inbox_commit":
-                assert (
-                    conn.execute(
-                        text("SELECT COUNT(*) FROM inbox WHERE event_id=:id"), {"id": outbox["id"]}
-                    ).scalar()
-                    == 1
-                )
-            else:
-                assert task["status"] == "running" and task["result_id"] is None
-                if point == "after_mongo_save":
-                    from pymongo import MongoClient
-
-                    mongo = MongoClient(os.environ["MONGO_URL"])
-                    assert mongo.agent_lab.results.find_one({"_id": task_id + ":" + task["attempt_id"]})
-                    mongo.close()
-        engine.dispose()
-        print("verified durable evidence at crash boundary:", point)
-    elif action == "pending":
+    if action == "pending":
         time.sleep(5)
         task = sql(task_id)
         assert task["status"] == "pending" and task["result_id"] is None, task

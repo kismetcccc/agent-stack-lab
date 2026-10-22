@@ -68,8 +68,12 @@ def main():
                 if message.error():
                     raise RuntimeError("Kafka consume error")
                 # If persist or commit fails, stop loop and restart rather than polling past an uncommitted record.
-                runtime.tasks.receive(json.loads(message.value()))
-                pause_at("after_inbox_commit")
+                event = json.loads(message.value())
+                runtime.tasks.receive(event)
+                pause_at(
+                    "after_inbox_commit", event["task_id"], event_id=event["event_id"],
+                    topic=message.topic(), partition=message.partition(), offset=message.offset(),
+                )
                 consumer.commit(message=message, asynchronous=False)
             HEARTBEAT.touch()
     finally:

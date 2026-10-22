@@ -55,7 +55,7 @@ Kafka停机时依赖readiness可能变为失败，但单纯ready标记不等同�
 
 ## MySQL真实停机与恢复：权威账本不能由缓存替代
 
-**当前证据状态：新增探针与离线辅助函数测试已实现，真实Docker停库实验待对应提交的CI验收。** 缺少Docker的云端不能运行本实验。基线的13项真实集成测试和Redis/Kafka/MongoDB/Worker故障证据不能代替这里新增的MySQL停机证据；最新执行结果以[当前任务清单](DEVELOPMENT_PLAN.md)和CI报告为准。
+**已验收：提交 `9f892c67` 的 [CI 39728628773](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39728628773) 完成真实 MySQL 停库与恢复，五阶段全部通过，并确认服务恢复。** 它独立于原有13项pytest真实集成测试；详细证据见[开发报告](DEVELOPMENT_REPORT.md)。缺少Docker的编写环境没有冒充重新运行。
 
 入口仍是 `bash scripts/test-integration.sh`，探针实现见 [outage_probe.py](../tests/integration/outage_probe.py)。新增实验不改生产逻辑、不重启API、不删除数据库或卷，也不调用真实模型。它先从真实 `/readyz` 验证 `production` 适配器与 `deterministic` 模型；`production` 在这里不代表已达到生产安全标准。
 
@@ -118,13 +118,25 @@ docker compose ps
 - [test_mysql_outage_probe.py](../backend/tests/test_mysql_outage_probe.py) 是离线**单元测试**：用 `httpx.MockTransport` 验证探针拒绝假成功、错误状态/模式、超时冒充503、顺序错误及敏感错误输出；用隔离命令替身检查shell成功/失败路径和恢复顺序。它们不连接MySQL、不启动Docker，也不能替代容器故障验收。
 - 会话、CSRF、合成幂等键仅放在 `test-results/outage-state.json`（0600；拒绝符号链接）；成功或退出清理时删除。该文件不得上传附件，现有CI排除规则继续保留。可公开的JUnit只含静态阶段名、测试类型与成功/失败信息，不记录cookie、key、连接串、原始响应或原始驱动异常。
 
-## 精确宕机窗口：需额外故障注入，不夸大现有脚本
+## 精确宕机窗口：预先确定暂停点，再验证真实 SIGKILL
 
-以下与“启动前停Worker”不同，必须有确定性hook或受控暂停，不能用随机kill一次就声称覆盖所有窗口。当前代码已提供默认关闭的LAB_TEST_HOOKS/LAB_TEST_PAUSE_AT测试钩子（详见API契约）；钩子存在不等于对应真实故障测试已经通过。
+本轮已修复旧实验的租约预算冲突和目标任务过滤，增加真实调用链的 task/run 标识、进程身份和过期检查。**新增四窗口脚本当前等待本轮 CI，不能仅凭代码和单元测试称实跑通过。** 最新状态见[开发报告](DEVELOPMENT_REPORT.md)。
+
+```bash
+# 独立合成数据栈，先运行标准集成并构建 integration 镜像：
+bash scripts/test-integration.sh
+bash scripts/test-crash-windows.sh
+```
+
+新入口仅使用 [crash_probe.py](../tests/integration/crash_probe.py)，旧 `outage_probe.py hook-evidence` 分支已移除。它默认要求真实组件和 deterministic；普通 Compose 不加载故障 overlay。隔离实验显式设置 `LAB_TEST_HOOKS`、暂停点、目标 task ID 和唯一 run ID；仅故障 Worker 使用30秒租约、关闭自动重启，保留 Agent 原有15秒持久化余量。
+
+脚本验证实际 marker 对应仍活着的进程，并保留足够剩余暂停时间；在 kill 前检查持久状态，确认 `SIGKILL` 后容器退出码137且已停止，再检查同一个持久边界，最后才换成无故障开关的 Worker 恢复。不能用随机 kill、过期 marker 或单纯 task succeeded 代替这个顺序。清理失败会失败退出，不吞掉错误。
+
+公开证据仅为 `crash-windows.xml` 和 `crash-windows.json` 的四个脚本场景与清理结论，**不是四个 pytest 集成用例**。私有 `crash-state.json` 含合成会话信息，权限0600，清理后删除，必须排除上传。普通停止/恢复不删卷、不重置 offset；只有独立 CI 最终才销毁它自己创建的临时数据。
 
 ### A. 发布后、sent_at前
 
-relay已经收到Kafka确认，暂停后退出。重启应再次发布同event_id；Inbox约束保证只产生一次有效状态转换。说明“至少一次”为什么需要接收方幂等。
+relay 已收到 Kafka 确认而尚未标记 sent_at，暂停后退出。这里只暂停 relay，consumer/executor 可以独立把任务推进到 ready/running/succeeded，**不能错误要求任务仍 pending**。实验核对 outbox 仍未标记、Kafka已有目标事件，重启后观察同 event_id 的实际重发和 Inbox 去重，再额外重投验证成功任务不会重新执行。
 
 ### B. Inbox提交后、offset前
 
@@ -132,7 +144,7 @@ relay已经收到Kafka确认，暂停后退出。重启应再次发布同event_i
 
 ### C. 运行租约过期
 
-暂停旧执行器直到lease_until，恢复器安排新attempt后再恢复旧执行器。旧fence的成功提交必须失败。单纯测试`finalize`返回false是算法测试；完整双进程竞态另需真实实验。
+本轮脚本在 claim 后、文档持久化前杀死 Worker；等待真实租约过期及 recovery，再由新 attempt 完成。旧 attempt 应记录 lease_expired，fence 递增，原已提交结果不能被改写。恢复后用旧身份调用 finalizer 被拒，只证明终态/引用隔离，不能单凭它独立证明 fence 谓词；原 recovery 测试另验运行中旧 fence。旧进程仍活着并与新进程竞争的完整双执行器实验仍未验收。
 
 ### D. MongoDB已保存、MySQL未成功
 
@@ -153,6 +165,16 @@ relay已经收到Kafka确认，暂停后退出。重启应再次发布同event_i
 - 是否恢复全部服务，有无遗留数据或孤儿结果。
 
 禁止记录密码、session cookie、CSRF token、模型key和真实私人prompt。`docker compose config`可能展开秘密，不把完整输出上传到公开CI附件。
+
+## 可直接运行的 HTTP 主功能示例
+
+[`scripts/test-http-smoke.py`](../scripts/test-http-smoke.py) 只用 Python 标准库，无需模型 key。它在任何 POST 之前验证真实适配器和 deterministic，随后检查注册→退出→登录→CSRF轮换→同键提交→真实生命周期/尝试/工具动作/结果→退出后401。请求和总流程有界，不跟随重定向、不继承代理凭据、不输出会话内容。账户和任务作为合成记录保留；成功会退出会话，失败/中断可能留下等待过期的合成会话，不自动重试未知结果。
+
+```bash
+TEST_BASE_URL=http://localhost:8080 python scripts/test-http-smoke.py
+```
+
+本轮将该命令加入真实 Compose CI，当前等待新提交实跑结果；离线 opener 单元测试不充当 HTTP 集成证据。下面的 curl 是分步学习版，按同一 API 契约核对，不把逐行手工执行未发生的事写成已经完成。
 
 ## curl 后端闭环（Bash / WSL2，无需前端）
 

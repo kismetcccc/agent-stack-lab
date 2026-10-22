@@ -238,7 +238,7 @@ class TaskService:
         for row in rows:
             topic = self.settings.dlq_topic if row.event_type == "task.failed" else self.settings.topic
             self.bus.publish(topic, json.loads(row.payload))
-            pause_at("after_outbox_publish")
+            pause_at("after_outbox_publish", row.task_id, event_id=row.id)
             with self.sessions() as session, session.begin():
                 stored = session.get(Outbox, row.id)
                 stored.sent_at = now()
@@ -317,7 +317,7 @@ class TaskService:
         claimed = self.claim()
         if not claimed:
             return False
-        pause_at("after_claim")
+        pause_at("after_claim", claimed.id, attempt_id=claimed.attempt_id, fence=claimed.fence)
         self.cache.write(claimed.id, "running")
         try:
             result_id = claimed.id + ":" + claimed.attempt_id
@@ -326,7 +326,7 @@ class TaskService:
             if not doc:
                 doc = self.model.run(claimed)
                 self.documents.save(result_id, doc)
-                pause_at("after_mongo_save")
+                pause_at("after_mongo_save", claimed.id, attempt_id=claimed.attempt_id, fence=claimed.fence)
             self.finalize(claimed, result_id)
         except Exception as exc:
             with self.sessions() as session, session.begin():

@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Kafka / MongoDB / Redis。Docker Compose 是真实集成载体，不用容器数量冒充架构能力。
 
-> **后端学习版本已验证**：提交 `f36523fa` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39725461902) 通过 145 项后端/采集器测试、13 项真实组件集成、30 项前端单元和 30 项桌面/手机浏览器测试。自动 CI 使用明确标注的脚本控制器；测试执行成功不等于自然语言任务质量合格。真实模型仅做过独立接口连通性检查，**尚无完整 live Agent 链路验收**。Kubernetes 和公网部署未验收，本项目不是生产就绪平台。
+> **后端学习版本已验证**：提交 `9f892c67` 在 [GitHub Actions](https://github.com/kismetcccc/agent-stack-lab/actions/runs/39728628773) 通过 228 项后端/采集器测试、13 项真实组件集成、30 项前端单元和 30 项桌面/手机浏览器测试。自动 CI 使用明确标注的脚本控制器；测试执行成功不等于自然语言任务质量合格。真实模型仅做过独立接口连通性检查，**尚无完整 live Agent 链路验收**。Kubernetes 和公网部署未验收，本项目不是生产就绪平台。 本轮新增精确宕机、HTTP 示例及构建上下文保护的验收状态见 [当前报告](docs/DEVELOPMENT_REPORT.md)。
 
 ## 不熟悉这些组件？先看一个小例子
 
@@ -72,7 +72,7 @@ curl -fsS http://localhost:8080/readyz
 
 如果 `.env` 已有模型配置、但数据库从未初始化，可在受支持的 Linux 本地文件系统使用显式 `--fill-missing` 补空项。先读 [配置与初始化说明](docs/CONFIGURATION.md)：原生 Windows 已有文件补齐暂不支持，已有数据卷不得用随机新密码替代丢失凭据。
 
-API 文档：`http://localhost:8080/docs`。默认8080直接访问API，不是前端页面。注册与提交任务见[curl实验](docs/FAILURE_LABS.md)。数据库不对主机公开端口，没有默认帐号。初始化只生成私有开发凭据，不包含真实模型key。
+API 文档：`http://localhost:8080/docs`。默认8080直接访问API，不是前端页面。注册与提交任务见[curl实验](docs/FAILURE_LABS.md)。数据库不对主机公开端口，没有可直接使用的默认密码；开发账户使用本地生成的随机凭据。初始化只生成私有开发凭据，不包含真实模型key。
 
 ```bash
 # 真实服务业务与故障测试（先启动core）

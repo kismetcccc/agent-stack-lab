@@ -133,7 +133,7 @@ python scripts/infra-init-env.py --path ./private-sandbox/.env --fill-missing
 | `backend/agent.py`、`backend/agent_provider.py` | 上述决策/工具/时间预算；provider 30 秒客户端超时且不跟随重定向；更多 DTO/字节预算见 [单 Agent 契约](SINGLE_AGENT.md) |
 | `compose.ui.yaml` | 可选网关主机 `127.0.0.1:8081`，API Origin 固定为 `http://localhost:8081`；`LAB_PORT` 不控制网关端口。未加载 overlay 时不启动 UI |
 | `compose.test.yaml` / `tests/integration` | `TEST_BASE_URL` 是测试客户端地址，默认测试为 `http://localhost:8080`，容器测试使用 `http://api:8000`；不是后端监听地址 |
-| `backend/faults.py` / `compose.fault-test.yaml` | `LAB_TEST_HOOKS`、`LAB_TEST_PAUSE_AT`、`LAB_TEST_TASK_ID` 只属于显式隔离故障实验；正常启动不加载该 overlay。实现/真实验收状态及租约配置以 [故障实验](FAILURE_LABS.md) 为准，不能拿实验租约用于日常 Agent |
+| `backend/faults.py` / `compose.fault-test.yaml` | `LAB_TEST_HOOKS`、`LAB_TEST_PAUSE_AT`、`LAB_TEST_TASK_ID`、`LAB_TEST_RUN_ID` 只属于显式隔离故障实验；正常启动不加载该 overlay。实现/真实验收状态及租约配置以 [故障实验](FAILURE_LABS.md) 为准，不能拿实验租约用于日常 Agent |
 | `tests/judge/capture.py` | `JUDGE_COMMIT` 只标记已有证据采集的提交来源，不启用真实模型、不代表语义质量评分 |
 
 ## 6. 验证与排错顺序

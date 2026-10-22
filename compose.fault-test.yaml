@@ -1,0 +1,10 @@
+# Explicit CI-only crash injection. Never load this override for normal startup.
+services:
+  worker:
+    restart: 'no' # Keep a killed process stopped until the host has verified exit code 137.
+    environment:
+      LAB_TEST_HOOKS: 'true'
+      LAB_TEST_PAUSE_AT: ${LAB_TEST_PAUSE_AT:?Choose explicit failure point}
+      LAB_TEST_TASK_ID: ${LAB_TEST_TASK_ID:?Target a specific test task}
+      LAB_TEST_RUN_ID: ${LAB_TEST_RUN_ID:?Unique crash window run identity}
+      LEASE_SECONDS: '30' # Agent retains its unchanged 15-second persistence reserve.

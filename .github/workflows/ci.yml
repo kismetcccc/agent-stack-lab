@@ -24,7 +24,7 @@ jobs:
       - run: uv sync --frozen
       - name: Backend lint and unit tests (no infrastructure mocks counted as integration)
         run: |
-          uv run ruff check backend tests/judge scripts/infra-init-env.py
+          uv run ruff check backend tests/judge scripts/infra-init-env.py scripts/test-http-smoke.py scripts/test-build-context.py
           uv run pytest backend/tests tests/judge/test_capture.py -m 'not integration' --junitxml=artifacts/unit.xml
       - name: Validate manifests without connecting to a daemon
         run: |
@@ -50,12 +50,20 @@ jobs:
           python-version: '3.12'
       - name: Generate ephemeral development credentials
         run: python scripts/infra-init-env.py
+      - name: Verify private files are excluded from Docker build contexts
+        run: python scripts/test-build-context.py
       - name: Build actual application containers
         run: docker compose build
       - name: Start backend-only core (frontend and gateway not required)
         run: docker compose up -d --wait --wait-timeout 300
+      - name: Execute documented standard-library HTTP main-function smoke
+        env:
+          TEST_BASE_URL: http://localhost:8080
+        run: python scripts/test-http-smoke.py
       - name: Real MySQL / Kafka / MongoDB / Redis integration and failure recovery
         run: bash scripts/test-integration.sh
+      - name: Verify four precise SIGKILL boundaries and hook-free recovery
+        run: bash scripts/test-crash-windows.sh
       - name: Capture frozen judge cases (capture integrity only, not semantic acceptance)
         env:
           JUDGE_COMMIT: ${{ github.sha }}
@@ -82,8 +90,11 @@ jobs:
           path: |
             artifacts/
             test-results/*.xml
+            test-results/crash-windows.json
             !test-results/outage-state.json
             !test-results/**/outage-state.json
+            !test-results/crash-state.json
+            !test-results/**/crash-state.json
           if-no-files-found: warn
       - name: Destroy CI-only ephemeral data
         if: always()
@@ -118,6 +129,8 @@ jobs:
         run: |
           python scripts/infra-init-env.py
           docker compose -f compose.yaml -f compose.ui.yaml config --quiet
+      - name: Verify private files are excluded from Docker build contexts
+        run: python scripts/test-build-context.py
       - name: Build and start real backend with same-origin UI gateway
         run: |
           docker compose -f compose.yaml -f compose.ui.yaml build
@@ -145,6 +158,8 @@ jobs:
             test-results/browser-artifacts/**/*.png
             test-results/browser-artifacts/**/judge-observations.json
             !test-results/**/outage-state.json
+            !test-results/crash-state.json
+            !test-results/**/crash-state.json
             !test-results/**/storageState.json
             !test-results/**/*.zip
           if-no-files-found: warn

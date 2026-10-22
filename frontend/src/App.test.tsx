@@ -475,3 +475,56 @@ it("never attempts CSRF recovery for a resource-permission 403", async () => {
   expect(me).toBe(1);
   expect(posts).toBe(1);
 });
+
+it("keeps a completed detail snapshot in the list when an older list response arrives later", async () => {
+  location.hash = "#lab?task=latest";
+  const base = {
+    id: "latest",
+    prompt: "真实详情优先于旧列表快照",
+    attempt_count: 0,
+    status: "pending",
+    created_at: "2026-10-22T03:00:00.000000",
+    updated_at: "2026-10-22T03:00:00.000000",
+    result_available: false,
+    model_mode: "deterministic",
+    trace_id: "trace",
+    progress: 0,
+    error: null,
+  };
+  const completed = {
+    ...base,
+    status: "succeeded",
+    attempt_count: 1,
+    updated_at: "2026-10-22T03:00:02.000000",
+    result_available: true,
+  };
+  let resolveList: (r: Response) => void = () => {};
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) => {
+      if (path.endsWith("/auth/me"))
+        return Promise.resolve(
+          json({ user: { id: "u", username: "student" }, csrf_token: "csrf" }),
+        );
+      if (path === "/readyz") return Promise.resolve(json({ mode: "test" }));
+      if (path.startsWith("/api/v1/tasks?"))
+        return new Promise<Response>((r) => {
+          resolveList = r;
+        });
+      if (path.endsWith("/events") || path.endsWith("/attempts"))
+        return Promise.resolve(json({ items: [] }));
+      if (path.endsWith("/results"))
+        return Promise.resolve(
+          json({ content: "真实报告", cache_status: "hit" }),
+        );
+      return Promise.resolve(json(completed));
+    }),
+  );
+  render(<App />);
+  await screen.findByTestId("report-content");
+  await act(async () => resolveList(json({ items: [base], total: 1 })));
+  const row = screen.getByRole("button", { name: /真实详情优先于旧列表快照/ });
+  expect(row).toHaveTextContent("已完成");
+  expect(row).toHaveTextContent("尝试 1");
+  expect(row).not.toHaveTextContent("等待分发");
+});

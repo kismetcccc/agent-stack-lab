@@ -97,7 +97,7 @@ jobs:
       - name: Frontend clean install, typecheck and production build
         working-directory: frontend
         run: |
-          npm ci
+          npm ci --no-audit
           npm run typecheck
           npm test
           npm run build

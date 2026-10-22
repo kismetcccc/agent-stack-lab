@@ -3088,3 +3088,19 @@ summary:focus-visible {
     font-size: 10px;
   }
 }
+/* A task title must truncate inside the column, never widen the mobile grid's
+   implicit min-content track and desynchronize layout/visual viewport hit tests. */
+.lab-grid > * {
+  min-width: 0;
+}
+.task-row > div {
+  min-width: 0;
+}
+.task-title {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .lab-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

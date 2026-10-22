@@ -1,7 +1,7 @@
 FROM node:24.22.1-alpine AS build
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci --no-audit
 COPY frontend/ ./
 RUN npm run build
 FROM nginx:1.28.3-alpine

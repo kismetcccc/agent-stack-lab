@@ -14,8 +14,9 @@ export async function requireRealBackend(request: APIRequestContext) {
 }
 
 export async function noPageOverflow(page: Page) {
-  const width = await page.evaluate(() => ({document: document.documentElement.scrollWidth, viewport: window.innerWidth}));
-  expect(width.document, 'no page-level horizontal overflow').toBeLessThanOrEqual(width.viewport + 2);
+  const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  const viewportWidth = page.viewportSize()!.width;
+  expect(documentWidth, 'document must fit the configured viewport, not an overflow-expanded mobile innerWidth').toBeLessThanOrEqual(viewportWidth);
 }
 
 export async function screenshot(page: Page, info: TestInfo, name: string) {

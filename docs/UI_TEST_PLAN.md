@@ -44,11 +44,14 @@ APP_ORIGIN 必须与浏览器完全一致：`http://localhost:8081`。不使用1
 | 检查 | 状态 | 说明 |
 |---|---|---|
 | npm ci（测试项目） | 已通过 | 使用可写缓存目录 |
-| Chromium151下载 | 环境阻塞 | 官方CDN反复返回0MiB非ZIP，安装器内置5次重试后退出1；不降级、不禁用sandbox |
-| Chromium沙箱启动 | 历史已通过 | Chromium141本地 `chromium.launch({chromiumSandbox:true})` 成功；151待安装后复验 |
-| 匿名UI浏览器测试 | 历史已通过；新版待复验 | Chromium141 sandbox、1440/390共4项6.2秒；升级151后尚未重跑 |
-| 真实业务UI浏览器测试 | 未运行 | 7场景×桌面/移动共14项已编写，等待真实集成CI |
-| 完整真实前端链路 | 未运行 | 云端无Docker；由真实Compose CI提供证据 |
+| Chromium151下载 | CI已通过；本地环境阻塞 | CI官方151.0.7922.34下载成功；本地CDN曾返回0MiB非ZIP，未降级绕过 |
+| Chromium沙箱启动 | CI已通过 | Ubuntu24.04 runner受AppArmor限制；仅UI job迁到官方支持的22.04，sandbox保持开启 |
+| 匿名UI浏览器测试 | CI已通过 | 官方151、1440/390共4项；不是仅历史141证据 |
+| 真实业务UI浏览器测试 | 13通过 / 1失败 | run39719030410，mobile主链路点击attempts被timeline覆盖；桌面7项与mobile其余6项通过 |
+| 完整浏览器套件 | 17通过 / 1错误 / 0跳过 | JUnit共18项，唯一错误为上述mobile点击超时；不能宣称全绿 |
+| 移动布局与列表一致性修复回归 | 待运行 | 保持18场景，主链路新增真实任务row终态/attempt一致断言，scrollWidth严格对比配置390/1440而不是可被溢出撑大的innerWidth |
+
+最新证据：commit `99fb9f80516f7c94580ebf280ebbfe9cd3dec040`，run `39719030410`，artifact `12400396635`。本地解压 `test-results/ci-39719030410/`，包含JUnit、6张匿名架构图、桌面真实成功图及mobile失败图。首次run39718568675的18项均停在sandbox启动，不是18项业务断言失败。
 
 已有后端20单元及9真实集成测试的成功不能代替前端浏览器验收。截图也不能单独证明四组件链路成功。
 

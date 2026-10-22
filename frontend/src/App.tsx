@@ -99,6 +99,7 @@ function App() {
     [submitError, setSubmitError] = useState("");
   const submitLock = useRef(false),
     idempotency = useRef<{ prompt: string; key: string } | null>(null);
+  const latestDetails = useRef(new Map<string, Task>());
   const identityEpoch = useRef(0);
   const sessionRef = useRef<Session | null>(null);
   const authOperation = useRef(0);
@@ -117,6 +118,7 @@ function App() {
       idempotency.current = null;
       setSubmitError("");
       setAuthError("");
+      latestDetails.current.clear();
       setTasks([]);
       setTotal(0);
       setOffset(0);
@@ -226,6 +228,7 @@ function App() {
   }, []);
   useEffect(() => {
     if (!session) {
+      latestDetails.current.clear();
       setTasks([]);
       setTotal(0);
       return;
@@ -246,7 +249,15 @@ function App() {
           { signal: c.signal },
         );
         if (!stopped && identityEpoch.current === epoch) {
-          setTasks(data.items);
+          // A slower list snapshot cannot regress a newer accepted detail response.
+          setTasks(
+            data.items.map((item) => {
+              const detail = latestDetails.current.get(item.id);
+              return detail && detail.updated_at >= item.updated_at
+                ? detail
+                : item;
+            }),
+          );
           setTotal(data.total);
           setListError("");
         }
@@ -321,6 +332,12 @@ function App() {
           cacheValue = data.cache_status;
         }
         if (!stopped && identityEpoch.current === epoch) {
+          latestDetails.current.set(t.id, t);
+          setTasks((items) =>
+            items.map((item) =>
+              item.id === t.id && t.updated_at >= item.updated_at ? t : item,
+            ),
+          );
           setTask(t);
           setEvents(e.items);
           setAttempts(a.items);

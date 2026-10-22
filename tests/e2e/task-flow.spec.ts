@@ -34,6 +34,16 @@ test.describe('real four-store browser chain', () => {
     const taskUrl = await submitTopic(page, prompt);
     await expect(page.getByTestId('task-events')).toContainText('succeeded');
     await expect(page.getByTestId('task-attempts')).toContainText('succeeded');
+    await noPageOverflow(page); // Check before scrolling/clicking: mobile layout must stay 390px wide.
+    const taskRow = page.locator('.task-row').filter({hasText: prompt});
+    await expect(taskRow).toContainText('已完成');
+    const taskId = new URLSearchParams(taskUrl.split('?')[1]).get('task')!;
+    const detailResponse = await page.request.get(`/api/v1/tasks/${taskId}`);
+    expect(detailResponse.status()).toBe(200);
+    const detail = await detailResponse.json();
+    expect(detail.attempt_count).toBe(1);
+    await expect(taskRow.locator('small')).toContainText(`尝试 ${detail.attempt_count}`);
+    await expect(page.getByTestId('task-attempts').locator('summary')).toHaveText(`执行尝试 · ${detail.attempt_count}`);
     await page.getByTestId("task-attempts").locator("summary").click();
     await expect(page.getByTestId('cache-status')).toContainText(/hit|miss/);
     await expect(page.getByTestId('task-detail')).toContainText(/deterministic|确定性/);

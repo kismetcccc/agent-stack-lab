@@ -4,7 +4,7 @@
 
 中文后端教学项目：FastAPI / MySQL / Redis / MongoDB / Kafka。**不必先创建 Agent 任务，不需要模型 Key，也不调用真实模型。** 原任务与 Agent、架构说明保留为进阶入口。
 
-> **当前改版**：按[本地控制台计划](docs/CONSOLE_REDESIGN_PLAN.md)重整导航和操作区，云端完整 CI 与实际截图已通过，本机更新待连接恢复，见[本轮验收状态](docs/CONSOLE_REDESIGN_REPORT.md)。保留现有后端与数据；云端验收不等于本机已更新。
+> **当前改版**：按[本地控制台计划](docs/CONSOLE_REDESIGN_PLAN.md)重整导航和操作区，云端完整 CI 与实际截图已通过，2026-10-23 本机已更新到 `11bdeb5f`，七服务健康，配置与业务数据保留，见[本轮验收状态](docs/CONSOLE_REDESIGN_REPORT.md)。PNL07：云端通过；本机部署和主要交互通过，剩余本机覆盖待补；任务抽屉本机步骤及认证阶段完整浏览器错误记录未验收。
 >
 > **已完成组件操作台**：代码 `ec1126d2` 的完整 CI 与本机升级已验收，595 项后端、58 项前端单元、20 项真实集成和 38 项浏览器测试见[历史报告](docs/COMPONENT_PLAYGROUND_REPORT.md)。这些结果不替代本轮界面回归。独立模型连通性不等于完整 live Agent 验收，本项目不是生产就绪平台。
 
